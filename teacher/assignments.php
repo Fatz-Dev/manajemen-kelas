@@ -204,7 +204,7 @@ include '../includes/header.php';
                             <a href="<?php echo BASE_URL; ?>/teacher/edit_assignment.php?id=<?php echo $assignment["id"]; ?>" class="text-yellow-600 hover:text-yellow-900 mr-3">
                                 <i class="fas fa-edit"></i> Edit
                             </a>
-                            <a href="<?php echo BASE_URL; ?>/teacher/view_submissions.php?assignment_id=<?php echo $assignment["id"]; ?>" class="text-green-600 hover:text-green-900">
+                            <a href="<?php echo BASE_URL; ?>/teacher/view_submissions.php?id=<?php echo $assignment["id"]; ?>" class="text-green-600 hover:text-green-900">
                                 <i class="fas fa-clipboard-check"></i> Nilai
                             </a>
                         </td>

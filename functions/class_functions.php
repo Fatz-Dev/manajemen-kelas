@@ -120,6 +120,22 @@ function countStudentsByClass($classId) {
 }
 
 /**
+ * Get class name by ID
+ * @param int $classId Class ID
+ * @return string Class name or empty string if not found
+ */
+function getClassNameById($classId) {
+    if (!$classId) {
+        return '';
+    }
+    
+    $sql = "SELECT class_name FROM classes WHERE id = ? LIMIT 1";
+    $result = fetchRow($sql, [$classId]);
+    
+    return $result ? $result['class_name'] : '';
+}
+
+/**
  * Create a new subject
  * @param array $data Subject data
  * @return int|false Subject ID or false if creation fails

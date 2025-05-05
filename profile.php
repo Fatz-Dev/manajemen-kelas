@@ -171,7 +171,7 @@ include 'includes/header.php';
                 <?php endif; ?>
                 <div>
                     <dt class="text-sm font-medium text-gray-500">Terdaftar Pada</dt>
-                    <dd class="mt-1 text-sm text-gray-900"><?php echo formatDate($user['created_at']); ?></dd>
+                    <dd class="mt-1 text-sm text-gray-900"><?php echo isset($user['created_at']) ? formatDate($user['created_at']) : 'Tidak tersedia'; ?></dd>
                 </div>
             </dl>
         </div>

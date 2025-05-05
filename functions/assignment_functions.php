@@ -7,6 +7,46 @@
 require_once __DIR__ . '/database.php';
 
 /**
+ * Get assignment status text
+ * @param string $status Assignment status
+ * @param string $dueDate Due date
+ * @return string Status text
+ */
+function getAssignmentStatusText($status, $dueDate) {
+    if ($status === 'draft') {
+        return 'Draft';
+    } elseif ($status === 'published') {
+        if (isOverdue($dueDate)) {
+            return 'Tenggat Berakhir';
+        }
+        return 'Aktif';
+    } elseif ($status === 'archived') {
+        return 'Diarsipkan';
+    }
+    return 'Tidak Diketahui';
+}
+
+/**
+ * Get assignment status class for styling
+ * @param string $status Assignment status
+ * @param string $dueDate Due date
+ * @return string CSS class
+ */
+function getAssignmentStatusClass($status, $dueDate) {
+    if ($status === 'draft') {
+        return 'bg-gray-100 text-gray-800';
+    } elseif ($status === 'published') {
+        if (isOverdue($dueDate)) {
+            return 'bg-yellow-100 text-yellow-800';
+        }
+        return 'bg-green-100 text-green-800';
+    } elseif ($status === 'archived') {
+        return 'bg-gray-100 text-gray-800';
+    }
+    return 'bg-gray-100 text-gray-800';
+}
+
+/**
  * Create a new assignment
  * @param array $data Assignment data
  * @return int|false Assignment ID or false if creation fails
@@ -211,18 +251,7 @@ function getSubmissionById($submissionId) {
  * @param int $offset Offset
  * @return array List of submissions
  */
-function getSubmissionsByAssignment($assignmentId, $limit = 50, $offset = 0) {
-    $sql = "SELECT s.*, u.full_name as student_name
-            FROM submissions s
-            JOIN users u ON s.student_id = u.id
-            WHERE s.assignment_id = ?
-            ORDER BY s.submitted_at DESC
-            LIMIT ? OFFSET ?";
-    
-    return fetchAll($sql, [$assignmentId, $limit, $offset], 'iii');
-}
-
-// This function is replaced by a different implementation below
+// Function getSubmissionsByAssignment is defined below (lines 605-618) with different parameters
 
 /**
  * Get submissions by student
@@ -324,63 +353,9 @@ function getRecentAssignmentsByClassAndTeacher($classId, $teacherId, $limit = 5)
     return fetchAll($sql, [$classId, $teacherId, $teacherId, $limit], 'iiis');
 }
 
-/**
- * Get assignment status text
- * @param string $status Assignment status
- * @param string $dueDate Due date
- * @return string Status text
- */
-function getAssignmentStatusText($status, $dueDate) {
-    if ($status === 'draft') {
-        return 'Draft';
-    }
-    
-    if ($status === 'published') {
-        $now = new DateTime();
-        $due = new DateTime($dueDate);
-        
-        if ($now > $due) {
-            return 'Tenggat Terlewati';
-        }
-        
-        return 'Aktif';
-    }
-    
-    if ($status === 'completed') {
-        return 'Selesai';
-    }
-    
-    return 'Tidak Diketahui';
-}
+// Using getAssignmentStatusText from helpers.php instead
 
-/**
- * Get assignment status class
- * @param string $status Assignment status
- * @param string $dueDate Due date
- * @return string CSS class
- */
-function getAssignmentStatusClass($status, $dueDate) {
-    if ($status === 'draft') {
-        return 'bg-gray-100 text-gray-800';
-    }
-    
-    if ($status === 'published') {
-        $now = new DateTime();
-        $due = new DateTime($dueDate);
-        
-        if ($now > $due) {
-            return 'bg-red-100 text-red-800';
-        }
-        
-        return 'bg-green-100 text-green-800';
-    }
-    
-    if ($status === 'completed') {
-        return 'bg-blue-100 text-blue-800';
-    }
-    
-    return 'bg-gray-100 text-gray-800';
-}
+// getAssignmentStatusClass is defined in helpers.php
 
 /**
  * Get recent assignments by class
@@ -605,30 +580,7 @@ function getAssignmentsBySubject($subjectId, $status = null) {
     return fetchAll($sql, $params, 'i' . ($status !== null ? 's' : ''));
 }
 
-/**
- * Get assignments by class ID
- * @param int $classId Class ID
- * @param string $status Assignment status (optional)
- * @return array List of assignments
- */
-function getAssignmentsByClass($classId, $status = null) {
-    $params = [$classId];
-    $statusCondition = '';
-    
-    if ($status !== null) {
-        $statusCondition = ' AND a.status = ?';
-        $params[] = $status;
-    }
-    
-    $sql = "SELECT a.*, s.subject_name, u.full_name as teacher_name
-            FROM assignments a
-            JOIN subjects s ON a.subject_id = s.id
-            JOIN users u ON a.created_by = u.id
-            WHERE a.class_id = ?$statusCondition
-            ORDER BY a.due_date DESC, a.created_at DESC";
-    
-    return fetchAll($sql, $params);
-}
+// Using getAssignmentsByClass function defined earlier (lines 67-89)
 
 /**
  * Count submissions for an assignment
@@ -650,4 +602,46 @@ function isOverdue($dueDate) {
     $now = new DateTime();
     $due = new DateTime($dueDate);
     return $now > $due;
+}
+
+/**
+ * Get all submissions for a specific assignment
+ * @param int $assignmentId Assignment ID
+ * @return array List of submissions with student information
+ */
+function getSubmissionsByAssignment($assignmentId) {
+    $sql = "SELECT s.*, u.full_name as student_name, u.username
+            FROM submissions s
+            JOIN users u ON s.student_id = u.id
+            WHERE s.assignment_id = ?
+            ORDER BY s.submitted_at DESC";
+    
+    return fetchAll($sql, [$assignmentId], 'i');
+}
+
+// Using getSubmissionById function defined earlier (lines 195-203)
+
+// Using getAssignmentsByTeacher function defined earlier (lines 98-120)
+
+/**
+ * Count graded and ungraded submissions for an assignment
+ * @param int $assignmentId Assignment ID
+ * @return array Counts
+ */
+function getSubmissionStats($assignmentId) {
+    // Count all submissions
+    $sqlTotal = "SELECT COUNT(*) as total FROM submissions WHERE assignment_id = ?";
+    $totalResult = fetchAll($sqlTotal, [$assignmentId], 'i');
+    $total = isset($totalResult[0]['total']) ? (int)$totalResult[0]['total'] : 0;
+    
+    // Count graded submissions
+    $sqlGraded = "SELECT COUNT(*) as graded FROM submissions WHERE assignment_id = ? AND grade IS NOT NULL";
+    $gradedResult = fetchAll($sqlGraded, [$assignmentId], 'i');
+    $graded = isset($gradedResult[0]['graded']) ? (int)$gradedResult[0]['graded'] : 0;
+    
+    return [
+        'total' => $total,
+        'graded' => $graded,
+        'ungraded' => $total - $graded
+    ];
 }

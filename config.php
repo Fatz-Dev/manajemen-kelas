@@ -1,35 +1,73 @@
 <?php
 /**
  * Configuration file for Manajemen Kelas application
- * Contains database credentials and global settings for MySQL (XAMPP)
+ * Configured for both PostgreSQL (Replit) and MySQL (XAMPP)
  */
 
-// Database Configuration for MySQL
-define('DB_SERVER', 'localhost');
-define('DB_USERNAME', 'root');
-define('DB_PASSWORD', '');
-define('DB_NAME', 'manajemen_kelas_db');
-
-// Attempt to connect to MySQL database
-try {
-    $conn = new mysqli(DB_SERVER, DB_USERNAME, DB_PASSWORD, DB_NAME);
+// Detect environment and set appropriate database connection
+if (getenv('REPL_ID') || getenv('DATABASE_URL')) {
+    // We're in Replit, use PostgreSQL
+    $databaseUrl = getenv('DATABASE_URL');
     
-    // Check connection
-    if ($conn->connect_error) {
-        throw new Exception("Connection failed: " . $conn->connect_error);
+    if ($databaseUrl) {
+        $dbParts = parse_url($databaseUrl);
+        
+        define('DB_TYPE', 'pgsql');
+        define('DB_SERVER', $dbParts['host']);
+        define('DB_PORT', $dbParts['port']);
+        define('DB_USERNAME', $dbParts['user']);
+        define('DB_PASSWORD', $dbParts['pass']);
+        define('DB_NAME', ltrim($dbParts['path'], '/'));
+        
+        try {
+            // Use PDO for PostgreSQL connection
+            $dsn = "pgsql:host=" . DB_SERVER . ";port=" . DB_PORT . ";dbname=" . DB_NAME;
+            $conn = new PDO($dsn, DB_USERNAME, DB_PASSWORD);
+            $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        } catch (PDOException $e) {
+            die("ERROR: Could not connect to database. " . $e->getMessage());
+        }
+    } else {
+        die("ERROR: No DATABASE_URL environment variable found.");
     }
+} else {
+    // We're in local XAMPP environment, use MySQL
+    define('DB_TYPE', 'mysql');
+    define('DB_SERVER', 'localhost');
+    define('DB_USERNAME', 'root');
+    define('DB_PASSWORD', '');
+    define('DB_NAME', 'manajemen_kelas_db');
     
-    // Set character set
-    $conn->set_charset("utf8mb4");
-    
-} catch (Exception $e) {
-    die("ERROR: Could not connect to database. " . $e->getMessage());
+    try {
+        $conn = new mysqli(DB_SERVER, DB_USERNAME, DB_PASSWORD, DB_NAME);
+        
+        // Check connection
+        if ($conn->connect_error) {
+            throw new Exception("Connection failed: " . $conn->connect_error);
+        }
+        
+        // Set character set
+        $conn->set_charset("utf8mb4");
+        
+    } catch (Exception $e) {
+        die("ERROR: Could not connect to database. " . $e->getMessage());
+    }
 }
 
 // Application Settings
 define('APP_NAME', 'Manajemen Kelas');
-// URL dasar untuk lingkungan XAMPP
-define('BASE_URL', 'http://localhost/manajemen_kelas');
+
+// Set BASE_URL based on environment
+if (getenv('REPL_ID')) {
+    // We're in Replit
+    $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https://' : 'http://';
+    $domain = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : getenv('REPL_SLUG') . '.' . getenv('REPL_OWNER') . '.repl.co';
+    define('BASE_URL', $protocol . $domain);
+} else {
+    // Local XAMPP environment
+    define('BASE_URL', 'http://localhost/manajemen_kelas');
+}
+
 define('APP_VERSION', '1.0.0');
 
 // Session Configuration

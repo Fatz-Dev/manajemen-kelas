@@ -4,6 +4,22 @@
  */
 
 /**
+ * Check if date is overdue
+ * @param string $date Date to check
+ * @return bool True if overdue, false otherwise
+ */
+function isOverdue($date) {
+    if (empty($date)) {
+        return false;
+    }
+    
+    $now = new DateTime();
+    $dueDate = new DateTime($date);
+    
+    return $now > $dueDate;
+}
+
+/**
  * Display alert message
  * @param string $message Alert message
  * @param string $type Alert type (success, danger, warning, info)
@@ -77,7 +93,7 @@ function postParam($name, $default = null) {
 }
 
 /**
- * Format date
+ * Format date 
  * @param string $date Date string
  * @param string $format Date format
  * @return string Formatted date
@@ -92,18 +108,17 @@ function formatDate($date, $format = 'd M Y') {
 }
 
 /**
- * Format datetime
- * @param string $datetime Datetime string
- * @param string $format Datetime format
- * @return string Formatted datetime
+ * Format date and time
+ * @param string $dateTime Date and time string
+ * @return string Formatted date and time
  */
-function formatDatetime($datetime, $format = 'd M Y, H:i') {
-    if (!$datetime) {
-        return '';
+function formatDateTime($dateTime) {
+    if (empty($dateTime)) {
+        return '-';
     }
     
-    $dt = new DateTime($datetime);
-    return $dt->format($format);
+    $dt = new DateTime($dateTime);
+    return $dt->format('d M Y, H:i');
 }
 
 /**
@@ -410,16 +425,5 @@ function getTimeAgo($datetime) {
     return 'Baru saja';
 }
 
-/**
- * Check if date is overdue
- * @param string $date Date to check
- * @return bool True if overdue, false otherwise
- */
-function isOverdue($date) {
-    if (!$date) {
-        return false;
-    }
-    
-    return strtotime($date) < time();
-}
+// isOverdue function is already defined above
 ?>
