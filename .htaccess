@@ -1,0 +1,58 @@
+# Enable URL rewriting
+RewriteEngine On
+
+# Base directory
+RewriteBase /manajemen_kelas/
+
+# Prevent direct access to PHP files in certain directories
+RewriteRule ^functions/.* - [F,L]
+RewriteRule ^includes/.* - [F,L]
+
+# Handle 404 errors
+ErrorDocument 404 /manajemen_kelas/index.php
+
+# Protect .htaccess file
+<Files .htaccess>
+    Order Allow,Deny
+    Deny from all
+</Files>
+
+# Protect any files that start with "."
+<FilesMatch "^\.">
+    Order Allow,Deny
+    Deny from all
+</FilesMatch>
+
+# Disable directory browsing
+Options -Indexes
+
+# Set default character set
+AddDefaultCharset UTF-8
+
+# Protect against XSS attacks
+<IfModule mod_headers.c>
+    Header set X-XSS-Protection "1; mode=block"
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; font-src 'self' https://cdnjs.cloudflare.com; img-src 'self' data:;"
+</IfModule>
+
+# PHP settings
+<IfModule mod_php8.c>
+    # Maximum upload file size
+    php_value upload_max_filesize 10M
+    php_value post_max_size 10M
+    
+    # Maximum execution time
+    php_value max_execution_time 300
+    
+    # Maximum input time
+    php_value max_input_time 300
+    
+    # Memory limit
+    php_value memory_limit 128M
+    
+    # Session timeout (30 minutes)
+    php_value session.gc_maxlifetime 1800
+    php_value session.cookie_lifetime 0
+</IfModule>
