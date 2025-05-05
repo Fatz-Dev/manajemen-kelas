@@ -1,0 +1,133 @@
+Project: Aplikasi Manajemen Kelas (nama app manajemen_kelas)
+Teknologi: PHP Native + Tailwind CSS
+Deskripsi:
+Buat aplikasi manajemen kelas dengan tiga role pengguna:
+1. Admin (mengelola seluruh sistem)
+2. Guru (membuat tugas, menilai siswa)
+3. Murid (melihat tugas, mengumpulkan tugas)
+
+Struktur folder:
+/project-root/
+├── index.php                        Halaman utama/landing page
+├── login.php                        Halaman login
+├── register.php                     Halaman registrasi user baru
+├── logout.php                       Proses logout
+├── config.php                       Konfigurasi database dan settings
+├── .htaccess                        Konfigurasi Apache (opsional)
+├── README.md                        Dokumentasi proyek
+├── important.md                     Catatan penting proyek
+
+├── admin/                           Area admin
+│   ├── dashboard.php                Dashboard admin
+│   ├── manage_classes.php            Kelola data kelas
+│   ├── manage_users.php              Kelola user (guru & murid)
+│   ├── manage_subjects.php           Kelola mata pelajaran
+│   └── reports.php                  Laporan aktivitas
+
+├── teacher/                         Area guru
+│   ├── dashboard.php                Dashboard guru
+│   ├── assignments.php              Kelola tugas
+│   ├── create_assignment.php        Buat tugas baru
+│   ├── submissions.php              Lihat pengumpulan tugas
+│   ├── grading.php                  Penilaian tugas
+│   └── my_classes.php               Kelas yang diajar
+
+├── student/                         Area murid
+│   ├── dashboard.php                Dashboard murid
+│   ├── assignments.php              Daftar tugas
+│   ├── submit_assignment.php        Kumpulkan tugas
+│   ├── grades.php                   Nilai tugas
+│   └── my_class.php                 Kelas saya
+
+├── auth/                            Autentikasi
+│   ├── login_process.php            Proses login
+│   ├── register_process.php         Proses registrasi
+│   └── password_reset.php           Reset password
+
+├── assets/                          Assets static
+│   ├── css/
+│   │   ├── tailwind.css             Tailwind CSS
+│   │   └── custom.css               Custom CSS tambahan
+│   ├── js/
+│   │   └── scripts.js               JavaScript (jika diperlukan)
+│   ├── images/                      
+│   │   ├── logo.png
+│   │   ├── favicon.ico
+│   └── vendors/                     Library third-party
+
+├── includes/                        Komponen reusable
+│   ├── header.php                   Header global
+│   ├── footer.php                   Footer global
+│   ├── navigation.php               Navigasi utama
+│   ├── sidebar.php                  Sidebar dashboard
+│   ├── alerts.php                   Komponen alert/notifikasi
+│   └── auth_check.php               Pengecekan session & role
+
+├── functions/                       File fungsi-fungsi
+│   ├── database.php                 Fungsi terkait database
+│   ├── auth_functions.php           Fungsi autentikasi
+│   ├── assignment_functions.php      Fungsi tugas
+│   ├── class_functions.php          Fungsi kelas
+│   └── helpers.php                  Fungsi helper umum
+
+├── uploads/                         Folder upload
+│   ├── assignments/                 File tugas guru
+│   └── submissions/                 File tugas siswa
+
+Fungsionalitas:
+- Homepage: 
+  * Tampilan sederhana dengan tombol login
+  * Deskripsi singkat sistem
+  * Navigasi minimal (Beranda, Login)
+
+- Login Page: 
+  * Form login dengan validasi
+  * Pilihan role (admin/guru/murid)
+  * Tampilkan pesan error jika gagal login
+
+- Dashboard:
+  * Tampilan berbeda sesuai role
+  * Admin: statistik sistem, manajemen user
+  * Guru: daftar kelas, buat tugas, nilai tugas
+  * Murid: tugas aktif, nilai, pengumpulan
+
+- Fitur Khusus:
+  * Manajemen waktu pengumpulan tugas (buka/tutup)
+  * Pengumpulan tugas dalam bentuk teks
+  * Penilaian tugas oleh guru
+  * Pengelompokan siswa berdasarkan kelas
+  * Laporan hasil belajar siswa
+
+Ketentuan teknis:
+- PHP native tanpa framework (PHP 8.2.12)
+- Styling hanya menggunakan Tailwind CSS
+- Database MySQL (phpMyAdmin 5.2.1)
+- Implementasi keamanan:
+  * Prepared statement untuk query
+  * Password hashing (password_hash())
+  * Session management
+  * Escape output
+  * Validasi input
+
+Warna yang digunakan dalam desain web:
+- bg-blue-600 (utama)
+- bg-gray-100 (background)
+- bg-white (card)
+- text-gray-800 (teks utama)
+
+Database:
+- Nama Database: manajemen_kelas_db
+- Struktur tabel utama:
+  * users (id, username, password, full_name, role, class_id)
+  * classes (id, class_name, homeroom_teacher_id)
+  * subjects (id, subject_name, teacher_id)
+  * assignments (id, title, description, subject_id, class_id, due_date, status, created_at)
+  * submissions (id, assignment_id, student_id, submission_text, file_path, submitted_at, grade, feedback)
+
+Note:
+- Berikan kode yang siap pakai di XAMPP
+- Sesuaikan dengan PHP 8.2.12 dan MySQL
+- Sertakan komentar penjelasan di kode
+- Buat file SQL untuk struktur database
+- Sertakan contoh data dummy untuk testing
+- Pastikan semua fitur berfungsi dengan baik
