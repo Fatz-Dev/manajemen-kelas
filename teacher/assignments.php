@@ -16,304 +16,251 @@ require_once '../includes/auth_check.php';
 $user = getCurrentUser();
 $teacherId = $user['id'];
 
-// Handle assignment status update
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
-    if ($_POST['action'] === 'update_status') {
-        $assignmentId = $_POST['assignment_id'];
-        $newStatus = $_POST['status'];
-        
-        // Validate assignment belongs to this teacher
-        $assignment = getAssignmentById($assignmentId);
-        if ($assignment && $assignment['created_by'] == $teacherId) {
-            updateAssignment($assignmentId, ['status' => $newStatus]);
-            setAlert('Status tugas berhasil diperbarui.', 'success');
-        } else {
-            setAlert('Anda tidak memiliki akses untuk memperbarui tugas ini.', 'danger');
-        }
-    } elseif ($_POST['action'] === 'delete_assignment') {
-        $assignmentId = $_POST['assignment_id'];
-        
-        // Validate assignment belongs to this teacher
-        $assignment = getAssignmentById($assignmentId);
-        if ($assignment && $assignment['created_by'] == $teacherId) {
-            // First delete all submissions for this assignment
-            executeQuery("DELETE FROM submissions WHERE assignment_id = ?", [$assignmentId]);
-            
-            // Then delete the assignment
-            if (delete('assignments', 'id = ?', [$assignmentId])) {
-                setAlert('Tugas berhasil dihapus.', 'success');
-            } else {
-                setAlert('Gagal menghapus tugas.', 'danger');
-            }
-        } else {
-            setAlert('Anda tidak memiliki akses untuk menghapus tugas ini.', 'danger');
-        }
-    }
-    
-    // Redirect to avoid resubmission
-    redirect(BASE_URL . '/teacher/assignments.php');
-}
-
-// Get filter parameters
-$classFilter = getParam('class_id', 'all');
-$statusFilter = getParam('status', 'all');
-$searchQuery = getParam('search', '');
-$page = getParam('page', 1);
+// Get page parameters
+$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 $limit = 10;
 $offset = ($page - 1) * $limit;
 
-// Build query conditions
-$conditions = ['a.created_by = ?'];
-$params = [$teacherId];
-$types = 'i';
+// Check if specific class is requested
+$classId = isset($_GET['class_id']) ? (int)$_GET['class_id'] : null;
+$status = isset($_GET['status']) ? $_GET['status'] : null;
 
-if ($classFilter !== 'all') {
-    $conditions[] = 'a.class_id = ?';
-    $params[] = $classFilter;
-    $types .= 'i';
+// Get assignments
+if ($classId) {
+    // Check if teacher has access to this class
+    if (!teacherTeachesClass($teacherId, $classId)) {
+        setAlert('Anda tidak memiliki akses ke kelas ini.', 'danger');
+        redirect(BASE_URL . '/teacher/my_classes.php');
+    }
+    
+    // Get class info
+    $class = getClassById($classId);
+    
+    // Get assignments for specific class
+    $assignments = getAssignmentsByClass($classId, $status, $limit, $offset);
+    $totalAssignments = countAssignmentsByClass($classId, $status);
+    
+    $pageTitle = "Tugas Kelas: " . $class['class_name'];
+    $pageHeader = "Tugas Kelas";
+    $pageDescription = "Kelola tugas untuk kelas " . $class['class_name'];
+} else {
+    // Get all assignments by teacher
+    $assignments = getAssignmentsByTeacher($teacherId, $status, $limit, $offset);
+    $totalAssignments = countAssignmentsByTeacher($teacherId, $status);
+    
+    $pageTitle = "Semua Tugas";
+    $pageHeader = "Semua Tugas";
+    $pageDescription = "Kelola semua tugas yang Anda buat";
 }
 
-if ($statusFilter !== 'all') {
-    $conditions[] = 'a.status = ?';
-    $params[] = $statusFilter;
-    $types .= 's';
-}
+// Calculate total pages
+$totalPages = ceil($totalAssignments / $limit);
 
-if (!empty($searchQuery)) {
-    $conditions[] = '(a.title LIKE ? OR a.description LIKE ? OR s.subject_name LIKE ? OR c.class_name LIKE ?)';
-    $searchParam = "%$searchQuery%";
-    $params[] = $searchParam;
-    $params[] = $searchParam;
-    $params[] = $searchParam;
-    $params[] = $searchParam;
-    $types .= 'ssss';
-}
+// Get ungraded submissions count
+$ungradedCount = getUngradedSubmissionsCount($teacherId);
 
-$whereClause = implode(' AND ', $conditions);
-
-// Count total assignments with filters
-$countSql = "SELECT COUNT(*) as count 
-             FROM assignments a
-             JOIN subjects s ON a.subject_id = s.id
-             JOIN classes c ON a.class_id = c.id
-             WHERE $whereClause";
-$countResult = fetchRow($countSql, $params, $types);
-$totalAssignments = $countResult ? $countResult['count'] : 0;
-
-// Get assignments with pagination
-$sql = "SELECT a.*, s.subject_name, c.class_name, 
-               (SELECT COUNT(*) FROM submissions WHERE assignment_id = a.id) as submission_count
-        FROM assignments a
-        JOIN subjects s ON a.subject_id = s.id
-        JOIN classes c ON a.class_id = c.id
-        WHERE $whereClause
-        ORDER BY a.due_date ASC
-        LIMIT ? OFFSET ?";
-
-$params[] = $limit;
-$params[] = $offset;
-$types .= 'ii';
-
-$assignments = fetchAll($sql, $params, $types);
-
-// Get classes taught by this teacher for the filter
-$teachingClasses = getClassesByTeacher($teacherId);
-
-// Setup pagination
-$paginationData = getPaginationData(
-    $totalAssignments,
-    $limit,
-    $page,
-    BASE_URL . '/teacher/assignments.php?class_id=' . $classFilter . '&status=' . $statusFilter . '&search=' . urlencode($searchQuery) . '&page=:page'
-);
-
-// Page details
-$pageTitle = "Manajemen Tugas";
-$pageHeader = "Manajemen Tugas";
-$pageDescription = "Kelola semua tugas yang Anda buat";
+// Set sidebar flag
 $showSidebar = true;
-?>
 
-<?php include '../includes/header.php'; ?>
-
-<div class="mb-6 flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-4 sm:space-y-0">
+// Include header
+include '../includes/header.php';
+?><!-- Filter and Action Buttons -->
+<div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
     <div>
-        <h2 class="text-xl font-semibold text-gray-800">Daftar Tugas</h2>
-        <p class="text-sm text-gray-500">Total: <?php echo $totalAssignments; ?> tugas</p>
+        <?php if ($classId): ?>
+            <a href="<?php echo BASE_URL; ?>/teacher/class_details.php?id=<?php echo $classId; ?>" class="text-blue-600 hover:text-blue-800 mb-4 inline-block">
+                <i class="fas fa-arrow-left mr-2"></i> Kembali ke Detail Kelas
+            </a>
+        <?php endif; ?>
+        
+        <h2 class="text-2xl font-bold text-gray-800"><?php echo $pageHeader; ?></h2>
+        <p class="text-gray-600"><?php echo $pageDescription; ?></p>
     </div>
     
-    <a href="<?php echo BASE_URL; ?>/teacher/create_assignment.php" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 inline-flex items-center">
-        <i class="fas fa-plus-circle mr-2"></i> Buat Tugas Baru
-    </a>
+    <div class="flex flex-wrap gap-2">
+        <a href="<?php echo BASE_URL; ?>/teacher/create_assignment.php<?php echo $classId ? "?class_id=" . $classId : ""; ?>" class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded inline-flex items-center">
+            <i class="fas fa-plus mr-2"></i> Buat Tugas Baru
+        </a>
+        
+        <?php if ($ungradedCount > 0): ?>
+            <a href="<?php echo BASE_URL; ?>/teacher/submissions.php?ungraded=1" class="bg-yellow-600 hover:bg-yellow-700 text-white py-2 px-4 rounded inline-flex items-center">
+                <i class="fas fa-clipboard-check mr-2"></i> <?php echo $ungradedCount; ?> Tugas Belum Dinilai
+            </a>
+        <?php endif; ?>
+    </div>
 </div>
 
-<!-- Filters and Search -->
+<!-- Filters -->
 <div class="bg-white rounded-lg shadow-md p-4 mb-6">
-    <form action="<?php echo BASE_URL; ?>/teacher/assignments.php" method="get" class="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4">
-        <div class="flex-1">
-            <label for="class_id" class="block text-sm font-medium text-gray-700 mb-1">Filter Kelas</label>
-            <select id="class_id" name="class_id" onchange="this.form.submit()" class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
-                <option value="all" <?php echo $classFilter === 'all' ? 'selected' : ''; ?>>Semua Kelas</option>
-                <?php foreach ($teachingClasses as $class): ?>
-                    <option value="<?php echo $class['id']; ?>" <?php echo $classFilter == $class['id'] ? 'selected' : ''; ?>>
-                        <?php echo escape($class['class_name']); ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
+    <div class="flex flex-col md:flex-row justify-between gap-4">
+        <div class="flex flex-wrap gap-2">
+            <a href="<?php echo BASE_URL; ?>/teacher/assignments.php<?php echo $classId ? "?class_id=" . $classId : ""; ?>" class="px-3 py-1 rounded <?php echo !$status ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-700 hover:bg-gray-300"; ?>">
+                Semua
+            </a>
+            <a href="<?php echo BASE_URL; ?>/teacher/assignments.php?<?php echo $classId ? "class_id=" . $classId . "&" : ""; ?>status=published" class="px-3 py-1 rounded <?php echo $status === "published" ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-700 hover:bg-gray-300"; ?>">
+                Aktif
+            </a>
+            <a href="<?php echo BASE_URL; ?>/teacher/assignments.php?<?php echo $classId ? "class_id=" . $classId . "&" : ""; ?>status=draft" class="px-3 py-1 rounded <?php echo $status === "draft" ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-700 hover:bg-gray-300"; ?>">
+                Draft
+            </a>
+            <a href="<?php echo BASE_URL; ?>/teacher/assignments.php?<?php echo $classId ? "class_id=" . $classId . "&" : ""; ?>status=completed" class="px-3 py-1 rounded <?php echo $status === "completed" ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-700 hover:bg-gray-300"; ?>">
+                Selesai
+            </a>
         </div>
         
-        <div class="flex-1">
-            <label for="status" class="block text-sm font-medium text-gray-700 mb-1">Filter Status</label>
-            <select id="status" name="status" onchange="this.form.submit()" class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
-                <option value="all" <?php echo $statusFilter === 'all' ? 'selected' : ''; ?>>Semua Status</option>
-                <option value="draft" <?php echo $statusFilter === 'draft' ? 'selected' : ''; ?>>Draft</option>
-                <option value="published" <?php echo $statusFilter === 'published' ? 'selected' : ''; ?>>Dipublikasikan</option>
-                <option value="closed" <?php echo $statusFilter === 'closed' ? 'selected' : ''; ?>>Ditutup</option>
-            </select>
-        </div>
-        
-        <div class="flex-1">
-            <label for="search" class="block text-sm font-medium text-gray-700 mb-1">Cari Tugas</label>
-            <div class="relative rounded-md shadow-sm">
-                <input type="text" id="search" name="search" value="<?php echo escape($searchQuery); ?>" placeholder="Cari judul tugas, deskripsi..." class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
-                <button type="submit" class="absolute inset-y-0 right-0 pr-3 flex items-center">
-                    <i class="fas fa-search text-gray-400"></i>
-                </button>
+        <?php if (!$classId): ?>
+            <div class="flex items-center">
+                <label for="class-filter" class="mr-2 text-sm font-medium text-gray-700">Kelas:</label>
+                <select id="class-filter" class="rounded-md border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
+                    <option value="">Semua Kelas</option>
+                    <?php 
+                    $classes = getClassesByTeacher($teacherId);
+                    foreach ($classes as $c): 
+                    ?>
+                    <option value="<?php echo $c["id"]; ?>"><?php echo escape($c["class_name"]); ?></option>
+                    <?php endforeach; ?>
+                </select>
             </div>
-        </div>
-    </form>
+        <?php endif; ?>
+    </div>
 </div>
 
 <!-- Assignments List -->
 <div class="bg-white rounded-lg shadow-md overflow-hidden">
-    <div class="overflow-x-auto">
+    <?php if (empty($assignments)): ?>
+        <div class="p-8 text-center">
+            <div class="text-gray-500 mb-4">
+                <i class="fas fa-tasks text-5xl mb-4"></i>
+                <p>Belum ada tugas <?php echo $status ? "dengan status " . $status : ""; ?>.</p>
+            </div>
+            <a href="<?php echo BASE_URL; ?>/teacher/create_assignment.php<?php echo $classId ? "?class_id=" . $classId : ""; ?>" class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded inline-flex items-center">
+                <i class="fas fa-plus mr-2"></i> Buat Tugas Baru
+            </a>
+        </div>
+    <?php else: ?>
         <table class="min-w-full divide-y divide-gray-200">
-            <thead>
+            <thead class="bg-gray-50">
                 <tr>
-                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Judul</th>
-                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kelas</th>
-                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mata Pelajaran</th>
-                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tenggat</th>
-                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pengumpulan</th>
-                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Judul</th>
+                    <?php if (!$classId): ?>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kelas</th>
+                    <?php endif; ?>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mata Pelajaran</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tenggat</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pengumpulan</th>
+                    <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
                 </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
-                <?php if (empty($assignments)): ?>
-                    <tr>
-                        <td colspan="7" class="px-6 py-4 text-center text-sm text-gray-500">
-                            <?php if (!empty($searchQuery) || $classFilter !== 'all' || $statusFilter !== 'all'): ?>
-                                Tidak ada tugas yang sesuai dengan filter yang dipilih
-                            <?php else: ?>
-                                Belum ada tugas yang dibuat
-                            <?php endif; ?>
+                <?php foreach ($assignments as $assignment): ?>
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4">
+                            <div class="text-sm font-medium text-gray-900">
+                                <?php echo escape($assignment["title"]); ?>
+                            </div>
+                            <div class="text-sm text-gray-500">
+                                Dibuat: <?php echo formatDate($assignment["created_at"]); ?>
+                            </div>
                         </td>
-                    </tr>
-                <?php else: ?>
-                    <?php foreach ($assignments as $assignment): ?>
-                        <tr>
+                        
+                        <?php if (!$classId): ?>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                <div class="text-sm font-medium text-gray-900"><?php echo escape($assignment['title']); ?></div>
-                                <div class="text-xs text-gray-500"><?php echo formatDate($assignment['created_at']); ?></div>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                <?php echo escape($assignment['class_name']); ?>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                <?php echo escape($assignment['subject_name']); ?>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                <?php echo formatDatetime($assignment['due_date']); ?>
-                                <?php if (isPast($assignment['due_date']) && $assignment['status'] === 'published'): ?>
-                                    <div class="text-xs text-yellow-600">Sudah lewat tenggat</div>
-                                <?php endif; ?>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full <?php echo getAssignmentStatusClass($assignment['status'], $assignment['due_date']); ?>">
-                                    <?php echo getAssignmentStatusText($assignment['status'], $assignment['due_date']); ?>
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                    <?php echo escape($assignment["class_name"]); ?>
                                 </span>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                <?php echo $assignment['submission_count']; ?> pengumpulan
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                <div class="flex space-x-2">
-                                    <a href="<?php echo BASE_URL; ?>/teacher/submissions.php?assignment_id=<?php echo $assignment['id']; ?>" class="text-blue-600 hover:text-blue-900">
-                                        <i class="fas fa-eye"></i> Lihat
-                                    </a>
-                                    <a href="<?php echo BASE_URL; ?>/teacher/create_assignment.php?id=<?php echo $assignment['id']; ?>" class="text-green-600 hover:text-green-900">
-                                        <i class="fas fa-edit"></i> Edit
-                                    </a>
-                                    <button type="button" class="text-red-600 hover:text-red-900" onclick="confirmDelete(<?php echo $assignment['id']; ?>, '<?php echo escape($assignment['title']); ?>')">
-                                        <i class="fas fa-trash-alt"></i> Hapus
-                                    </button>
-                                </div>
-                                <?php if ($assignment['status'] === 'draft'): ?>
-                                    <div class="mt-2">
-                                        <button type="button" class="text-xs text-blue-600 hover:text-blue-900" onclick="updateStatus(<?php echo $assignment['id']; ?>, 'published')">
-                                            <i class="fas fa-check-circle"></i> Publikasikan
-                                        </button>
-                                    </div>
-                                <?php elseif ($assignment['status'] === 'published'): ?>
-                                    <div class="mt-2">
-                                        <button type="button" class="text-xs text-yellow-600 hover:text-yellow-900" onclick="updateStatus(<?php echo $assignment['id']; ?>, 'closed')">
-                                            <i class="fas fa-lock"></i> Tutup
-                                        </button>
-                                    </div>
-                                <?php elseif ($assignment['status'] === 'closed'): ?>
-                                    <div class="mt-2">
-                                        <button type="button" class="text-xs text-green-600 hover:text-green-900" onclick="updateStatus(<?php echo $assignment['id']; ?>, 'published')">
-                                            <i class="fas fa-lock-open"></i> Buka Kembali
-                                        </button>
-                                    </div>
-                                <?php endif; ?>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                <?php endif; ?>
+                        <?php endif; ?>
+                        
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="text-sm text-gray-900">
+                                <?php echo escape($assignment["subject_name"]); ?>
+                            </span>
+                        </td>
+                        
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="text-sm <?php echo strtotime($assignment["due_date"]) < time() ? "text-red-600" : "text-gray-900"; ?>">
+                                <?php echo formatDate($assignment["due_date"]); ?>
+                            </span>
+                        </td>
+                        
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full <?php echo getAssignmentStatusClass($assignment["status"], $assignment["due_date"]); ?>">
+                                <?php echo getAssignmentStatusText($assignment["status"], $assignment["due_date"]); ?>
+                            </span>
+                        </td>
+                        
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <?php 
+                            $submissionCount = countSubmissionsByAssignment($assignment["id"]);
+                            echo $submissionCount;
+                            ?>
+                        </td>
+                        
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <a href="<?php echo BASE_URL; ?>/teacher/view_assignment.php?id=<?php echo $assignment["id"]; ?>" class="text-blue-600 hover:text-blue-900 mr-3">
+                                <i class="fas fa-eye"></i> Lihat
+                            </a>
+                            <a href="<?php echo BASE_URL; ?>/teacher/edit_assignment.php?id=<?php echo $assignment["id"]; ?>" class="text-yellow-600 hover:text-yellow-900 mr-3">
+                                <i class="fas fa-edit"></i> Edit
+                            </a>
+                            <a href="<?php echo BASE_URL; ?>/teacher/view_submissions.php?assignment_id=<?php echo $assignment["id"]; ?>" class="text-green-600 hover:text-green-900">
+                                <i class="fas fa-clipboard-check"></i> Nilai
+                            </a>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
             </tbody>
         </table>
-    </div>
-    
-    <?php if ($totalAssignments > $limit): ?>
-        <div class="px-6 py-4 border-t">
-            <?php echo generatePagination($paginationData); ?>
-        </div>
+
+        
+        <!-- Pagination -->
+        <?php if ($totalPages > 1): ?>
+            <div class="p-4 bg-gray-50 border-t border-gray-200">
+                <div class="flex justify-between items-center">
+                    <div class="text-sm text-gray-700">
+                        Menampilkan <?php echo ($offset + 1); ?>-<?php echo min($offset + $limit, $totalAssignments); ?> dari <?php echo $totalAssignments; ?> tugas
+                    </div>
+                    <div class="flex space-x-1">
+                        <?php if ($page > 1): ?>
+                            <a href="<?php echo BASE_URL; ?>/teacher/assignments.php?<?php echo $classId ? "class_id=" . $classId . "&" : ""; ?><?php echo $status ? "status=" . $status . "&" : ""; ?>page=<?php echo ($page - 1); ?>" class="px-3 py-1 rounded border border-gray-300 bg-white text-gray-700 hover:bg-gray-50">
+                                &laquo; Prev
+                            </a>
+                        <?php endif; ?>
+                        
+                        <?php for ($i = max(1, $page - 2); $i <= min($totalPages, $page + 2); $i++): ?>
+                            <a href="<?php echo BASE_URL; ?>/teacher/assignments.php?<?php echo $classId ? "class_id=" . $classId . "&" : ""; ?><?php echo $status ? "status=" . $status . "&" : ""; ?>page=<?php echo $i; ?>" class="px-3 py-1 rounded border <?php echo $i === $page ? "bg-blue-600 text-white border-blue-600" : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"; ?>">
+                                <?php echo $i; ?>
+                            </a>
+                        <?php endfor; ?>
+                        
+                        <?php if ($page < $totalPages): ?>
+                            <a href="<?php echo BASE_URL; ?>/teacher/assignments.php?<?php echo $classId ? "class_id=" . $classId . "&" : ""; ?><?php echo $status ? "status=" . $status . "&" : ""; ?>page=<?php echo ($page + 1); ?>" class="px-3 py-1 rounded border border-gray-300 bg-white text-gray-700 hover:bg-gray-50">
+                                Next &raquo;
+                            </a>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+        <?php endif; ?>
     <?php endif; ?>
 </div>
 
-<!-- Hidden forms for actions -->
-<form id="status-form" action="<?php echo BASE_URL; ?>/teacher/assignments.php" method="post" class="hidden">
-    <input type="hidden" name="action" value="update_status">
-    <input type="hidden" name="assignment_id" id="status_assignment_id">
-    <input type="hidden" name="status" id="status_value">
-</form>
-
-<form id="delete-form" action="<?php echo BASE_URL; ?>/teacher/assignments.php" method="post" class="hidden">
-    <input type="hidden" name="action" value="delete_assignment">
-    <input type="hidden" name="assignment_id" id="delete_assignment_id">
-</form>
-
 <script>
-    function updateStatus(assignmentId, status) {
-        if (status === 'closed') {
-            if (!confirm('Apakah Anda yakin ingin menutup tugas ini? Siswa tidak akan dapat mengumpulkan tugas lagi.')) {
-                return;
-            }
+    // Class filter change handler
+    document.addEventListener("DOMContentLoaded", function() {
+        const classFilter = document.getElementById("class-filter");
+        if (classFilter) {
+            classFilter.addEventListener("change", function() {
+                const classId = this.value;
+                if (classId) {
+                    window.location.href = "<?php echo BASE_URL; ?>/teacher/assignments.php?class_id=" + classId<?php echo $status ? " + \"&status=" . $status . "\"" : ""; ?>;
+                } else {
+                    window.location.href = "<?php echo BASE_URL; ?>/teacher/assignments.php<?php echo $status ? "?status=" . $status : ""; ?>";
+                }
+            });
         }
-        
-        document.getElementById('status_assignment_id').value = assignmentId;
-        document.getElementById('status_value').value = status;
-        document.getElementById('status-form').submit();
-    }
-    
-    function confirmDelete(assignmentId, title) {
-        if (confirm('Apakah Anda yakin ingin menghapus tugas "' + title + '"? Semua pengumpulan tugas ini juga akan dihapus.')) {
-            document.getElementById('delete_assignment_id').value = assignmentId;
-            document.getElementById('delete-form').submit();
-        }
-    }
+    });
 </script>
 
-<?php include '../includes/footer.php'; ?>
+<?php include "../includes/footer.php"; ?>

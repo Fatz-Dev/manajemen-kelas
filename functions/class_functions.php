@@ -101,7 +101,7 @@ function getClassesByTeacher($teacherId) {
  * @return array List of students
  */
 function getStudentsByClass($classId, $limit = 50, $offset = 0) {
-    $sql = "SELECT id, username, full_name, email, last_login, created_at
+    $sql = "SELECT id, username, full_name, email, created_at
             FROM users
             WHERE class_id = ? AND role = 'student'
             ORDER BY full_name
@@ -297,6 +297,24 @@ function teacherTeachesClass($teacherId, $classId) {
     return ($result !== null);
 }
 
+
+
+/**
+ * Get subjects taught by teacher in specific class
+ * @param int $teacherId Teacher ID
+ * @param int $classId Class ID
+ * @return array List of subjects
+ */
+function getSubjectsByTeacherAndClass($teacherId, $classId) {
+    $sql = "SELECT s.*
+            FROM subjects s
+            JOIN class_subject cs ON s.id = cs.subject_id
+            WHERE s.teacher_id = ? AND cs.class_id = ?
+            ORDER BY s.subject_name";
+    
+    return fetchAll($sql, [$teacherId, $classId], 'ii');
+}
+
 /**
  * Get available teachers
  * @return array List of teachers
@@ -309,3 +327,5 @@ function getAvailableTeachers() {
     
     return fetchAll($sql);
 }
+
+

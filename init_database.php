@@ -1,50 +1,71 @@
 <?php
-// Initialize SQLite database with schema and sample data
+/**
+ * Database initialization script for local XAMPP environment
+ * This script helps to create and initialize the database in MySQL
+ */
 
-// Path to SQLite database
-$db_path = __DIR__ . '/database.sqlite';
+// Database connection parameters
+$host = 'localhost';
+$user = 'root';
+$password = '';  // Default for XAMPP is empty
 
-// Path to SQL schema file
-$schema_file = __DIR__ . '/database.sqlite.sql';
-
-// Check if database exists, if yes, delete it to start fresh
-if (file_exists($db_path)) {
-    unlink($db_path);
-    echo "Existing database removed.<br>";
-}
-
-// Create new SQLite database
+// Create connection
 try {
-    $db = new SQLite3($db_path);
-    echo "New database created successfully.<br>";
+    // Connect without database selection first
+    $conn = new mysqli($host, $user, $password);
     
-    // Enable foreign keys
-    $db->exec('PRAGMA foreign_keys = ON;');
+    if ($conn->connect_error) {
+        throw new Exception("Connection failed: " . $conn->connect_error);
+    }
     
-    // Read and execute SQL schema
-    $sql = file_get_contents($schema_file);
+    // Try to create database
+    $sql = "CREATE DATABASE IF NOT EXISTS manajemen_kelas_db";
+    if ($conn->query($sql) === TRUE) {
+        echo "<p>Database created successfully or already exists</p>";
+    } else {
+        throw new Exception("Error creating database: " . $conn->error);
+    }
     
-    // Split SQL into individual statements
-    $statements = explode(';', $sql);
+    // Select the database
+    $conn->select_db('manajemen_kelas_db');
     
-    // Execute each statement
-    foreach ($statements as $statement) {
-        $statement = trim($statement);
+    // Read the SQL file
+    $sqlFile = file_get_contents('manajemen_kelas_db.sql');
+    
+    if ($sqlFile === false) {
+        throw new Exception("Could not read SQL file");
+    }
+    
+    // Split SQL file into separate queries
+    $queries = explode(';', $sqlFile);
+    
+    // Execute each query
+    $success = true;
+    foreach ($queries as $query) {
+        $query = trim($query);
+        if (empty($query)) continue;
         
-        if (!empty($statement)) {
-            if ($db->exec($statement) === false) {
-                echo "Error executing statement: " . $db->lastErrorMsg() . "<br>";
-            }
+        if ($conn->query($query) === FALSE) {
+            echo "<p>Error executing query: $query<br>" . $conn->error . "</p>";
+            $success = false;
         }
     }
     
-    echo "Database schema and sample data created successfully.<br>";
-    echo "<br>You can now <a href=\"index.php\">go to the application</a>.";
+    if ($success) {
+        echo "<p>Database initialized successfully!</p>";
+        echo "<p>Default login credentials:</p>";
+        echo "<ul>";
+        echo "<li>Admin: username <strong>admin</strong>, password <strong>admin123</strong></li>";
+        echo "<li>Teacher: username <strong>guru1</strong>, password <strong>admin123</strong></li>";
+        echo "<li>Student: username <strong>siswa1</strong>, password <strong>admin123</strong></li>";
+        echo "</ul>";
+        echo "<p><a href='index.php'>Go to application</a></p>";
+    }
     
-    // Close database connection
-    $db->close();
+    // Close connection
+    $conn->close();
     
 } catch (Exception $e) {
-    echo "Error creating database: " . $e->getMessage();
+    die("<p>ERROR: " . $e->getMessage() . "</p>");
 }
 ?>

@@ -46,6 +46,17 @@ function escape($value) {
 }
 
 /**
+ * Sanitize input
+ * @param string $value Value to sanitize
+ * @return string Sanitized value
+ */
+function sanitize_input($value) {
+    $value = trim($value);
+    $value = stripslashes($value);
+    return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+}
+
+/**
  * Get GET parameter
  * @param string $name Parameter name
  * @param mixed $default Default value if parameter doesn't exist
@@ -397,5 +408,18 @@ function getTimeAgo($datetime) {
     }
     
     return 'Baru saja';
+}
+
+/**
+ * Check if date is overdue
+ * @param string $date Date to check
+ * @return bool True if overdue, false otherwise
+ */
+function isOverdue($date) {
+    if (!$date) {
+        return false;
+    }
+    
+    return strtotime($date) < time();
 }
 ?>

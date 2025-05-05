@@ -70,7 +70,7 @@ $currentUri = get_active_uri();
                                 </a>
                             <?php endif; ?>
                             
-                            <a href="#" class="block px-4 py-2 text-gray-800 hover:bg-gray-100">
+                            <a href="<?php echo BASE_URL; ?>/profile.php" class="block px-4 py-2 text-gray-800 hover:bg-gray-100">
                                 <i class="fas fa-user-circle w-5 inline-block"></i> Profil
                             </a>
                             

@@ -58,8 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 'password' => password_hash($password, PASSWORD_DEFAULT),
                 'full_name' => $fullName,
                 'role' => $role,
-                'class_id' => $classId,
-                'status' => 'active'
+                'class_id' => $classId
             ];
             
             $userId = registerUser($userData);
@@ -78,8 +77,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $email = trim($_POST['email']);
         $role = $_POST['role'];
         $classId = !empty($_POST['class_id']) ? $_POST['class_id'] : null;
-        $status = $_POST['status'];
-        
         // Validate input
         $errors = [];
         
@@ -105,8 +102,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 'full_name' => $fullName,
                 'email' => $email,
                 'role' => $role,
-                'class_id' => $classId,
-                'status' => $status
+                'class_id' => $classId
             ];
             
             if (update('users', $userData, 'id = ?', [$userId])) {
@@ -261,7 +257,7 @@ $showSidebar = true;
                     <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Username</th>
                     <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
                     <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kelas</th>
-                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+
                     <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Terdaftar</th>
                     <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
                 </tr>
@@ -307,15 +303,7 @@ $showSidebar = true;
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                 <?php echo $user['class_name'] ? escape($user['class_name']) : '-'; ?>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <?php
-                                if ($user['status'] === 'active') {
-                                    echo '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Aktif</span>';
-                                } else {
-                                    echo '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Nonaktif</span>';
-                                }
-                                ?>
-                            </td>
+
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                 <?php echo formatDate($user['created_at']); ?>
                             </td>
@@ -476,14 +464,7 @@ $showSidebar = true;
                                         </select>
                                     </div>
                                 </div>
-                                <div>
-                                    <label for="edit_status" class="block text-sm font-medium text-gray-700">Status</label>
-                                    <select name="status" id="edit_status" required
-                                            class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
-                                        <option value="active">Aktif</option>
-                                        <option value="inactive">Nonaktif</option>
-                                    </select>
-                                </div>
+
                             </div>
                         </div>
                     </div>
@@ -622,7 +603,6 @@ $showSidebar = true;
         document.getElementById('edit_full_name').value = user.full_name;
         document.getElementById('edit_email').value = user.email;
         document.getElementById('edit_role').value = user.role;
-        document.getElementById('edit_status').value = user.status;
         
         if (user.class_id) {
             document.getElementById('edit_class_id').value = user.class_id;

@@ -15,7 +15,7 @@ require_once __DIR__ . '/database.php';
 function authenticate($username, $password) {
     $sql = "SELECT id, username, password, full_name, email, role, class_id 
             FROM users 
-            WHERE username = ? AND status = 'active'";
+            WHERE username = ?";
     
     $user = fetchRow($sql, [$username]);
     
@@ -27,9 +27,13 @@ function authenticate($username, $password) {
         return false;
     }
     
-    // Update last login timestamp
-    $updateSql = "UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?";
-    executeQuery($updateSql, [$user['id']]);
+    // Update last login timestamp (only if column exists)
+    try {
+        $updateSql = "UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?";
+        executeQuery($updateSql, [$user['id']]);
+    } catch (Exception $e) {
+        // Column might not exist, just continue
+    }
     
     // Remove password from the result
     unset($user['password']);
@@ -77,7 +81,7 @@ function getCurrentUser() {
         return null;
     }
     
-    $sql = "SELECT id, username, full_name, email, role, class_id, last_login 
+    $sql = "SELECT id, username, full_name, email, role, class_id 
             FROM users 
             WHERE id = ?";
     
@@ -133,7 +137,7 @@ function logout() {
  * @return string|false Token or false if failed
  */
 function generatePasswordResetToken($email) {
-    $user = fetchRow("SELECT id FROM users WHERE email = ? AND status = 'active'", [$email]);
+    $user = fetchRow("SELECT id FROM users WHERE email = ?", [$email]);
     
     if (!$user) {
         return false;
@@ -227,7 +231,7 @@ function changePassword($userId, $currentPassword, $newPassword) {
  * @return array|null User data or null if not found
  */
 function getUserById($userId) {
-    $sql = "SELECT id, username, full_name, email, role, class_id, last_login, status, created_at 
+    $sql = "SELECT id, username, full_name, email, role, class_id, created_at 
             FROM users 
             WHERE id = ?";
     
@@ -242,7 +246,7 @@ function getUserById($userId) {
  * @return array List of users
  */
 function getUsersByRole($role, $limit = 10, $offset = 0) {
-    $sql = "SELECT id, username, full_name, email, role, class_id, last_login, status, created_at 
+    $sql = "SELECT id, username, full_name, email, role, class_id, created_at 
             FROM users 
             WHERE role = ? 
             ORDER BY created_at DESC 

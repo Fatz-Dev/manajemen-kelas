@@ -23,9 +23,9 @@ Ikuti langkah-langkah berikut untuk menginstal dan menjalankan Sistem Manajemen 
    - Biasanya terletak di `C:\xampp\htdocs\` (Windows) atau `/Applications/XAMPP/htdocs/` (macOS)
    - Buat folder baru dengan nama `manajemen_kelas` di dalam folder `htdocs`
    - Salin semua file aplikasi ke dalam folder tersebut
-2. Ganti file konfigurasi aplikasi:
-   - Salin file `config_xampp.php` menjadi `config.php` (timpa file yang ada)
-   - Atau, edit file `config.php` dan ganti kode koneksi database dengan kode yang ada di `config_xampp.php`
+2. Konfigurasi database sudah diatur untuk XAMPP di file `config.php`
+   - File ini menggunakan username `root` tanpa password (default XAMPP)
+   - Jika Anda mengubah password MySQL di XAMPP, edit file `config.php` dan ubah nilai `DB_PASSWORD`
 
 ## 4. Akses Aplikasi
 

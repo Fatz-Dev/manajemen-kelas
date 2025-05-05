@@ -2,6 +2,7 @@
 // Include configuration file and authentication functions
 require_once 'config.php';
 require_once 'functions/auth_functions.php';
+require_once 'functions/helpers.php';
 
 // Check if user is logged in
 if (isLoggedIn()) {
