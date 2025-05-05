@@ -4,208 +4,191 @@
  * Contains database credentials and global settings
  */
 
-// Database Configuration - Using SQLite for Replit environment
-define('DB_PATH', __DIR__ . '/database.sqlite');
+// Database Configuration using PostgreSQL as MySQL substitute for Replit
+$pghost = getenv('PGHOST');
+$pgport = getenv('PGPORT');
+$pgdatabase = getenv('PGDATABASE');
+$pguser = getenv('PGUSER');
+$pgpassword = getenv('PGPASSWORD');
 
-// Attempt to connect to SQLite database
+// Define constants for compatibility with existing code
+define('DB_SERVER', 'localhost');
+define('DB_USERNAME', 'root');
+define('DB_PASSWORD', '');
+define('DB_NAME', 'manajemen_kelas_db');
+
+// Create PostgreSQL to MySQL compatibility layer
+class PgSQLResult {
+    private $result;
+    public $num_rows;
+    
+    public function __construct($result) {
+        $this->result = $result;
+        $this->num_rows = pg_num_rows($result);
+    }
+    
+    public function fetch_assoc() {
+        return pg_fetch_assoc($this->result);
+    }
+    
+    public function fetch_array() {
+        return pg_fetch_array($this->result);
+    }
+    
+    public function free() {
+        return pg_free_result($this->result);
+    }
+}
+
+class PgSQLStatement {
+    private $conn;
+    private $sql;
+    private $params = [];
+    private $types = '';
+    public $affected_rows;
+    public $result;
+    
+    public function __construct($connection, $sql) {
+        $this->conn = $connection;
+        $this->sql = $sql;
+    }
+    
+    public function bind_param($types, ...$params) {
+        $this->types = $types;
+        $this->params = $params;
+        return true;
+    }
+    
+    public function execute() {
+        // Convert params based on types
+        $convertedParams = [];
+        for ($i = 0; $i < strlen($this->types); $i++) {
+            $type = $this->types[$i];
+            $value = $this->params[$i];
+            
+            switch ($type) {
+                case 'i': // integer
+                    $convertedParams[] = (int)$value;
+                    break;
+                case 'd': // double
+                    $convertedParams[] = (float)$value;
+                    break;
+                case 's': // string
+                default:
+                    $convertedParams[] = $value;
+                    break;
+            }
+        }
+        
+        $this->result = pg_query_params($this->conn, $this->sql, $convertedParams);
+        if (!$this->result) {
+            error_log("Error executing statement: " . pg_last_error($this->conn));
+            return false;
+        }
+        
+        $this->affected_rows = pg_affected_rows($this->result);
+        return true;
+    }
+    
+    public function get_result() {
+        return new PgSQLResult($this->result);
+    }
+    
+    public function close() {
+        // PostgreSQL statements don't need explicit closing
+        return true;
+    }
+}
+
+class PgSQLEmulator {
+    private $conn;
+    public $insert_id;
+    public $affected_rows;
+    
+    public function __construct($connection) {
+        $this->conn = $connection;
+    }
+    
+    public function query($sql) {
+        // Convert MySQL syntax to PostgreSQL
+        $sql = str_replace('`', '"', $sql); // Replace backticks with double quotes
+        $sql = preg_replace('/AUTO_INCREMENT/', 'SERIAL', $sql);
+        $sql = preg_replace('/INT\([0-9]+\)/', 'INTEGER', $sql);
+        $sql = str_replace('UNSIGNED', '', $sql); // Remove UNSIGNED keyword
+        $sql = preg_replace('/ENUM\s*\([^)]+\)/', 'VARCHAR(255)', $sql); // Replace ENUM with VARCHAR
+        $sql = str_replace('ENGINE=InnoDB', '', $sql); // Remove ENGINE definition
+        $sql = str_replace('DEFAULT CHARSET=utf8mb4', '', $sql); // Remove charset definition
+        $sql = str_replace('ON UPDATE CURRENT_TIMESTAMP', '', $sql); // Remove ON UPDATE
+        
+        $result = pg_query($this->conn, $sql);
+        if (!$result) {
+            error_log("Error executing query: " . pg_last_error($this->conn));
+            return false;
+        }
+        
+        // For INSERT queries, get the last insert ID
+        if (stripos($sql, 'INSERT') === 0) {
+            $this->insert_id = $this->getLastInsertId($sql);
+        }
+        
+        // For UPDATE/DELETE queries, get affected rows
+        if (stripos($sql, 'UPDATE') === 0 || stripos($sql, 'DELETE') === 0) {
+            $this->affected_rows = pg_affected_rows($result);
+        }
+        
+        return new PgSQLResult($result);
+    }
+    
+    private function getLastInsertId($sql) {
+        // Extract table name from INSERT query
+        if (preg_match('/INSERT\s+INTO\s+(\w+)/i', $sql, $matches)) {
+            $table = $matches[1];
+            $result = pg_query($this->conn, "SELECT CURRVAL(pg_get_serial_sequence('$table', 'id')) as last_id");
+            if ($result && $row = pg_fetch_assoc($result)) {
+                return $row['last_id'];
+            }
+        }
+        return 0;
+    }
+    
+    public function prepare($sql) {
+        // Convert MySQL placeholders (?) to PostgreSQL placeholders ($1, $2, etc.)
+        $count = 0;
+        $sql = preg_replace_callback('/\?/', function($matches) use (&$count) {
+            $count++;
+            return '$' . $count;
+        }, $sql);
+        
+        $sql = str_replace('`', '"', $sql); // Replace backticks with double quotes
+        
+        return new PgSQLStatement($this->conn, $sql);
+    }
+    
+    public function real_escape_string($string) {
+        return pg_escape_string($this->conn, $string);
+    }
+    
+    public function select_db($dbname) {
+        // PostgreSQL requires new connection to switch databases
+        return true; // For compatibility, just return true
+    }
+}
+
+// Attempt to connect to PostgreSQL database (as MySQL substitute)
 try {
-    // Create a new SQLite database or open existing one
-    $conn = new SQLite3(DB_PATH);
+    $conn_string = "host=$pghost port=$pgport dbname=$pgdatabase user=$pguser password=$pgpassword";
+    $conn = pg_connect($conn_string);
     
-    // Enable exceptions for SQLite errors
-    $conn->enableExceptions(true);
-    
-    // Create a mysqli compatibility wrapper
-    class SQLite3_Compat {
-        private $sqlite;
-        public $insert_id;
-        public $affected_rows;
-        
-        public function __construct($sqlite) {
-            $this->sqlite = $sqlite;
-        }
-        
-        public function query($sql) {
-            // Convert MySQL-specific syntax to SQLite
-            $sql = $this->convertToSQLite($sql);
-            
-            try {
-                $result = $this->sqlite->query($sql);
-                
-                if ($result === false) {
-                    error_log("Error executing query: " . $this->sqlite->lastErrorMsg());
-                    return false;
-                }
-                
-                // For INSERT queries, get the last insert ID
-                if (stripos($sql, 'INSERT') === 0) {
-                    $this->insert_id = $this->sqlite->lastInsertRowID();
-                }
-                
-                // For UPDATE/DELETE queries, get affected rows
-                if (stripos($sql, 'UPDATE') === 0 || stripos($sql, 'DELETE') === 0) {
-                    $this->affected_rows = $this->sqlite->changes();
-                }
-                
-                return new SQLite3_Result($result);
-            } catch (Exception $e) {
-                error_log("Query error: " . $e->getMessage());
-                return false;
-            }
-        }
-        
-        public function prepare($sql) {
-            // Convert MySQL-specific syntax to SQLite
-            $sql = $this->convertToSQLite($sql);
-            
-            try {
-                $stmt = $this->sqlite->prepare($sql);
-                if ($stmt === false) {
-                    error_log("Error preparing statement: " . $this->sqlite->lastErrorMsg());
-                    return false;
-                }
-                return new SQLite3_Statement($stmt);
-            } catch (Exception $e) {
-                error_log("Prepare error: " . $e->getMessage());
-                return false;
-            }
-        }
-        
-        public function real_escape_string($string) {
-            return SQLite3::escapeString($string);
-        }
-        
-        public function select_db($dbname) {
-            // SQLite doesn't need to select database
-            return true;
-        }
-        
-        private function convertToSQLite($sql) {
-            // Replace AUTO_INCREMENT with AUTOINCREMENT
-            $sql = str_replace('AUTO_INCREMENT', 'AUTOINCREMENT', $sql);
-            
-            // Replace ENGINE=InnoDB with empty string
-            $sql = preg_replace('/ENGINE=InnoDB.*?;/', ';', $sql);
-            
-            // Replace character set declarations
-            $sql = preg_replace('/DEFAULT CHARSET=([^\s;]+)/', '', $sql);
-            
-            // Replace UNSIGNED (not supported in SQLite)
-            $sql = str_replace('UNSIGNED', '', $sql);
-            
-            // Replace ON UPDATE CURRENT_TIMESTAMP (not supported in SQLite)
-            $sql = str_replace('ON UPDATE CURRENT_TIMESTAMP', '', $sql);
-            
-            // ENUM types are not supported in SQLite, convert to TEXT
-            $sql = preg_replace('/ENUM\([^\)]+\)/', 'TEXT', $sql);
-            
-            return $sql;
-        }
+    // Check connection
+    if (!$conn) {
+        throw new Exception("Connection failed: " . pg_last_error());
     }
     
-    class SQLite3_Result {
-        private $result;
-        public $num_rows;
-        
-        public function __construct($result) {
-            $this->result = $result;
-            
-            // Count rows for SELECT queries
-            $count = 0;
-            if ($this->result) {
-                $current_position = $this->result->reset();
-                while ($this->result->fetchArray()) {
-                    $count++;
-                }
-                $this->result->reset();
-                $this->num_rows = $count;
-            } else {
-                $this->num_rows = 0;
-            }
-        }
-        
-        public function fetch_assoc() {
-            return $this->result ? $this->result->fetchArray(SQLITE3_ASSOC) : false;
-        }
-        
-        public function fetch_array($mode = SQLITE3_BOTH) {
-            return $this->result ? $this->result->fetchArray($mode) : false;
-        }
-        
-        public function free() {
-            // SQLite3Result doesn't need explicit freeing
-            return true;
-        }
-    }
-    
-    class SQLite3_Statement {
-        private $stmt;
-        private $params = [];
-        private $result;
-        public $affected_rows;
-        
-        public function __construct($stmt) {
-            $this->stmt = $stmt;
-        }
-        
-        public function bind_param($types, ...$params) {
-            for ($i = 0; $i < strlen($types); $i++) {
-                $param_index = $i + 1; // SQLite parameter indices are 1-based
-                $type = $types[$i];
-                $value = $params[$i];
-                
-                switch ($type) {
-                    case 'i': // integer
-                        $this->stmt->bindValue($param_index, (int)$value, SQLITE3_INTEGER);
-                        break;
-                    case 'd': // double
-                        $this->stmt->bindValue($param_index, (float)$value, SQLITE3_FLOAT);
-                        break;
-                    case 'b': // blob
-                        $this->stmt->bindValue($param_index, $value, SQLITE3_BLOB);
-                        break;
-                    case 's': // string
-                    default:
-                        $this->stmt->bindValue($param_index, $value, SQLITE3_TEXT);
-                        break;
-                }
-            }
-            
-            return true;
-        }
-        
-        public function execute() {
-            try {
-                $this->result = $this->stmt->execute();
-                
-                if ($this->result === false) {
-                    return false;
-                }
-                
-                global $conn;
-                $this->affected_rows = $conn->changes();
-                return true;
-            } catch (Exception $e) {
-                error_log("Execute error: " . $e->getMessage());
-                return false;
-            }
-        }
-        
-        public function get_result() {
-            return new SQLite3_Result($this->result);
-        }
-        
-        public function close() {
-            // Close statement
-            return $this->stmt->close();
-        }
-    }
-    
-    // Create compatibility wrapper
-    $conn = new SQLite3_Compat($conn);
+    // Create mysqli compatibility wrapper
+    $conn = new PgSQLEmulator($conn);
     
 } catch (Exception $e) {
-    die("ERROR: Could not connect to SQLite database. " . $e->getMessage());
+    die("ERROR: Could not connect to database. " . $e->getMessage());
 }
 
 // Application Settings
