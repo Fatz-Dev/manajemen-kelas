@@ -1,0 +1,20 @@
+
+tolong perbaiki
+- admin dapat masuk ke dashboard---> Fatal error: Cannot redeclare getAssignmentStatusText() (previously declared in C:\xampp\htdocs\manajemen_kelas\functions\helpers.php:314) in C:\xampp\htdocs\manajemen_kelas\functions\assignment_functions.php on line 353
+- kesalahan pada profil admin, guru, dan siswa ---> Warning: Undefined array key "created_at" in C:\xampp\htdocs\manajemen_kelas\profile.php on line 174
+- laporam pada admin tidak bisa di lihatt ---> Fatal error: Cannot redeclare getAssignmentStatusText() (previously declared in C:\xampp\htdocs\manajemen_kelas\functions\helpers.php:314) in C:\xampp\htdocs\manajemen_kelas\functions\assignment_functions.php on line 353
+
+-tidak bisa masuk ke dashboard guru ---> Fatal error: Cannot redeclare getAssignmentStatusText() (previously declared in C:\xampp\htdocs\manajemen_kelas\functions\helpers.php:314) in C:\xampp\htdocs\manajemen_kelas\functions\assignment_functions.php on line 353
+-tidak ada halaman fitur penilaian siswa pada guru tolong ditambahkan fitur nya agar bisa memberi nialai siswa yang sudah kumpul tugas
+-tidak ada halaman fitur pengumpulan tugas pada  guru tolong tambahkan agar bisa melihat siswa yang mengumpulkan tugas 
+-tidak bisa masuk ke fitur tugas pada guru --> Fatal error: Cannot redeclare getAssignmentStatusText() (previously declared in C:\xampp\htdocs\manajemen_kelas\functions\helpers.php:314) in C:\xampp\htdocs\manajemen_kelas\functions\assignment_functions.php on line 353
+-pada kelas saya di kelas yang saya ajar fitur detail dan tugas tidak bisa di buka --> Fatal error: Cannot redeclare getAssignmentStatusText() (previously declared in C:\xampp\htdocs\manajemen_kelas\functions\helpers.php:314) in C:\xampp\htdocs\manajemen_kelas\functions\assignment_functions.php on line 353
+
+-tidak bisa masuk ke dashboard siswa --> Fatal error: Cannot redeclare getAssignmentStatusText() (previously declared in C:\xampp\htdocs\manajemen_kelas\functions\helpers.php:314) in C:\xampp\htdocs\manajemen_kelas\functions\assignment_functions.php on line 353
+-tidak bisa masuk ke dashboard pada siswa --> Fatal error: Cannot redeclare getAssignmentStatusText() (previously declared in C:\xampp\htdocs\manajemen_kelas\functions\helpers.php:314) in C:\xampp\htdocs\manajemen_kelas\functions\assignment_functions.php on line 353
+-tidak bisa masuk ke kelas saya pad siswa --> Fatal error: Cannot redeclare getAssignmentStatusText() (previously declared in C:\xampp\htdocs\manajemen_kelas\functions\helpers.php:314) in C:\xampp\htdocs\manajemen_kelas\functions\assignment_functions.php on line 353
+-tidak bisa masuk ke Tugas pada siswa --> Fatal error: Cannot redeclare getAssignmentStatusText() (previously declared in C:\xampp\htdocs\manajemen_kelas\functions\helpers.php:314) in C:\xampp\htdocs\manajemen_kelas\functions\assignment_functions.php on line 353
+-tidak bisa masuk ke nilai pada siswa --> Fatal error: Cannot redeclare getAssignmentStatusText() (previously declared in C:\xampp\htdocs\manajemen_kelas\functions\helpers.php:314) in C:\xampp\htdocs\manajemen_kelas\functions\assignment_functions.php on line 353
+
+
+saya juga tidak butuh file konfigurasi khusus untuk Replit yang akan digunakan saat menjalankan aplikasi di Replit baik itu PostgreSQL maupun sqlite saya tidak membutuhkannya dan tolong dihapus karena saya hanya akan menjalankan di komputer saya dengan xampp dan MYSQL jadi atur sesaui MYSQL dan hapus segala hal yang tidak bersangkutan dengan xampp dan MYSQL saya
