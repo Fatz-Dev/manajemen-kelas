@@ -1,4 +1,50 @@
 <?php
+// Tampilkan pesan khusus untuk lingkungan Replit
+if (getenv('REPL_ID')) {
+    echo '<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aplikasi Manajemen Kelas - XAMPP Required</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100 font-sans">
+    <div class="container mx-auto px-4 py-16 max-w-4xl">
+        <div class="bg-white rounded-lg shadow-lg p-8 mb-8">
+            <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">Aplikasi Manajemen Kelas</h1>
+            
+            <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-6" role="alert">
+                <p class="font-bold">Perhatian!</p>
+                <p>Aplikasi ini dirancang khusus untuk berjalan di lingkungan XAMPP dengan MySQL di komputer lokal.</p>
+            </div>
+            
+            <div class="prose max-w-none">
+                <h2 class="text-xl font-semibold mb-4">Petunjuk Instalasi</h2>
+                <ol class="list-decimal pl-6 space-y-2">
+                    <li>Pasang XAMPP di komputer Anda (versi 7.4 atau lebih baru)</li>
+                    <li>Salin seluruh folder aplikasi ke dalam folder <code>htdocs/manajemen_kelas</code> di instalasi XAMPP Anda</li>
+                    <li>Buat database baru bernama <code>manajemen_kelas_db</code> melalui phpMyAdmin</li>
+                    <li>Import file <code>manajemen_kelas_db.sql</code> ke database tersebut</li>
+                    <li>Akses aplikasi melalui browser di <code>http://localhost/manajemen_kelas</code></li>
+                </ol>
+                
+                <h2 class="text-xl font-semibold mt-6 mb-4">Kredensial Default</h2>
+                <ul class="list-disc pl-6 space-y-2">
+                    <li><strong>Admin:</strong> username <code>admin</code>, password <code>admin123</code></li>
+                    <li><strong>Guru:</strong> username <code>guru1</code>, password <code>admin123</code></li>
+                    <li><strong>Siswa:</strong> username <code>siswa1</code>, password <code>admin123</code></li>
+                </ul>
+                
+                <p class="mt-6">Untuk informasi lebih lanjut, silakan lihat <a href="README_XAMPP.md" class="text-blue-600 hover:underline">README_XAMPP.md</a> dan <a href="XAMPP_SETUP.md" class="text-blue-600 hover:underline">XAMPP_SETUP.md</a>.</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>';
+    exit;
+}
+
 // Include configuration file
 require_once 'config.php';
 require_once 'functions/helpers.php';
