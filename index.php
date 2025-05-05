@@ -2,6 +2,7 @@
 // Include configuration file
 require_once 'config.php';
 require_once 'functions/helpers.php';
+require_once 'functions/auth_functions.php';
 
 // Page details
 $pageTitle = "Beranda";
