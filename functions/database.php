@@ -1,6 +1,7 @@
 <?php
 /**
  * Database functions for the application
+ * File ini menampung fungsi database utama aplikasi untuk MySQL
  */
 
 // Include configuration file if not already included

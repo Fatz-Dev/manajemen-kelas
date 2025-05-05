@@ -1,78 +1,35 @@
 <?php
 /**
  * Configuration file for Manajemen Kelas application
- * Contains database credentials and global settings
- * This is a hybrid configuration for both MySQL (XAMPP) and PostgreSQL (Replit)
+ * Contains database credentials and global settings for MySQL (XAMPP)
  */
 
-// Check if running on Replit (PostgreSQL)
-if (getenv('DATABASE_URL')) {
-    // PostgreSQL database connection (for Replit)
-    $databaseUrl = parse_url(getenv('DATABASE_URL'));
+// Database Configuration for MySQL
+define('DB_SERVER', 'localhost');
+define('DB_USERNAME', 'root');
+define('DB_PASSWORD', '');
+define('DB_NAME', 'manajemen_kelas_db');
+
+// Attempt to connect to MySQL database
+try {
+    $conn = new mysqli(DB_SERVER, DB_USERNAME, DB_PASSWORD, DB_NAME);
     
-    try {
-        // Create PDO connection for PostgreSQL
-        $dsn = sprintf(
-            'pgsql:host=%s;port=%s;dbname=%s;user=%s;password=%s', 
-            $databaseUrl['host'], 
-            isset($databaseUrl['port']) ? $databaseUrl['port'] : 5432, 
-            ltrim($databaseUrl['path'], '/'), 
-            $databaseUrl['user'], 
-            $databaseUrl['pass']
-        );
-        
-        // Create connection
-        $conn = new PDO($dsn);
-        
-        // Set PDO error mode to exception
-        $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-        
-        // Set PostgreSQL specific settings
-        $conn->setAttribute(PDO::ATTR_EMULATE_PREPARES, false);
-        
-        // Flag for PDO usage with PostgreSQL
-        define('USE_PDO', true);
-        define('DB_TYPE', 'pgsql');
-        
-    } catch (PDOException $e) {
-        die("ERROR: Could not connect to PostgreSQL database. " . $e->getMessage());
+    // Check connection
+    if ($conn->connect_error) {
+        throw new Exception("Connection failed: " . $conn->connect_error);
     }
     
-    // Override BASE_URL for Replit
-    define('BASE_URL', isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https' ? 'https://' : 'http://' . $_SERVER['HTTP_HOST']);
+    // Set character set
+    $conn->set_charset("utf8mb4");
     
-} else {
-    // MySQL database connection (for XAMPP)
-    define('DB_SERVER', 'localhost');
-    define('DB_USERNAME', 'root');
-    define('DB_PASSWORD', '');
-    define('DB_NAME', 'manajemen_kelas_db');
-    define('DB_TYPE', 'mysql');
-    define('USE_PDO', false);
-    
-    // Attempt to connect to MySQL database
-    try {
-        $conn = new mysqli(DB_SERVER, DB_USERNAME, DB_PASSWORD, DB_NAME);
-        
-        // Check connection
-        if ($conn->connect_error) {
-            throw new Exception("Connection failed: " . $conn->connect_error);
-        }
-        
-        // Set character set
-        $conn->set_charset("utf8mb4");
-        
-    } catch (Exception $e) {
-        die("ERROR: Could not connect to MySQL database. " . $e->getMessage());
-    }
-    
-    // Base URL for local XAMPP
-    define('BASE_URL', 'http://localhost/manajemen_kelas');
+} catch (Exception $e) {
+    die("ERROR: Could not connect to database. " . $e->getMessage());
 }
 
 // Application Settings
 define('APP_NAME', 'Manajemen Kelas');
-// BASE_URL is already defined above based on environment
+// URL dasar untuk lingkungan XAMPP
+define('BASE_URL', 'http://localhost/manajemen_kelas');
 define('APP_VERSION', '1.0.0');
 
 // Session Configuration
