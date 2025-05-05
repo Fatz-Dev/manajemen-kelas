@@ -48,7 +48,7 @@ Lihat petunjuk instalasi dan penggunaan di file [XAMPP_SETUP.md](XAMPP_SETUP.md)
 ## File Penting
 
 - **manajemen_kelas_db.sql**: File SQL untuk mengimpor struktur dan data awal database
-- **config_xampp.php**: Konfigurasi database untuk lingkungan XAMPP (ganti nama menjadi config.php)
+- **config.php**: Konfigurasi database untuk lingkungan XAMPP
 
 ## Kebutuhan Sistem
 

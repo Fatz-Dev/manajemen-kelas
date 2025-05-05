@@ -1,11 +1,4 @@
 <?php
-// Cek jika ini adalah lingkungan Replit
-if (getenv('REPL_ID') || getenv('REPL_SLUG')) {
-    // Pada lingkungan Replit, tampilkan halaman informasi XAMPP
-    include 'replit_demo_info.php';
-    exit;
-}
-
 // Include configuration file and functions
 require_once 'config.php';
 require_once 'functions/helpers.php';
