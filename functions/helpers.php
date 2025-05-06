@@ -1,74 +1,21 @@
 <?php
-/**
- * Helper functions for the application
- */
 
 /**
- * Check if date is overdue
- * @param string $date Date to check
- * @return bool True if overdue, false otherwise
- */
-function isOverdue($date) {
-    if (empty($date)) {
-        return false;
-    }
-    
-    $now = new DateTime();
-    $dueDate = new DateTime($date);
-    
-    return $now > $dueDate;
-}
-
-/**
- * Display alert message
- * @param string $message Alert message
- * @param string $type Alert type (success, danger, warning, info)
- * @return void
- */
-function setAlert($message, $type = 'info') {
-    $_SESSION['alert'] = [
-        'message' => $message,
-        'type' => $type
-    ];
-}
-
-/**
- * Get and clear alert message
- * @return array|null Alert data or null if no alert
- */
-function getAlert() {
-    $alert = isset($_SESSION['alert']) ? $_SESSION['alert'] : null;
-    unset($_SESSION['alert']);
-    return $alert;
-}
-
-/**
- * Redirect to URL
+ * Redirect to a URL
  * @param string $url URL to redirect to
  * @return void
  */
 function redirect($url) {
-    header("Location: $url");
+    header('Location: ' . $url);
     exit;
 }
 
 /**
- * Sanitize output
- * @param string $value Value to sanitize
- * @return string Sanitized value
+ * Escape HTML special characters
+ * @param string $value Value to escape
+ * @return string Escaped value
  */
 function escape($value) {
-    return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
-}
-
-/**
- * Sanitize input
- * @param string $value Value to sanitize
- * @return string Sanitized value
- */
-function sanitize_input($value) {
-    $value = trim($value);
-    $value = stripslashes($value);
     return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
 }
 
@@ -102,7 +49,7 @@ function formatDate($date, $format = 'd M Y') {
     if (!$date) {
         return '';
     }
-    
+
     $datetime = new DateTime($date);
     return $datetime->format($format);
 }
@@ -116,7 +63,7 @@ function formatDateTime($dateTime) {
     if (empty($dateTime)) {
         return '-';
     }
-    
+
     $dt = new DateTime($dateTime);
     return $dt->format('d M Y, H:i');
 }
@@ -130,10 +77,10 @@ function isPast($date) {
     if (!$date) {
         return false;
     }
-    
+
     $datetime = new DateTime($date);
     $now = new DateTime();
-    
+
     return $datetime < $now;
 }
 
@@ -145,11 +92,11 @@ function isPast($date) {
 function generateRandomString($length = 10) {
     $characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
     $randomString = '';
-    
+
     for ($i = 0; $i < $length; $i++) {
         $randomString .= $characters[rand(0, strlen($characters) - 1)];
     }
-    
+
     return $randomString;
 }
 
@@ -181,13 +128,13 @@ function hasAllowedExtension($filename, $allowedExtensions) {
  */
 function formatFileSize($bytes, $precision = 2) {
     $units = ['B', 'KB', 'MB', 'GB', 'TB'];
-    
+
     $bytes = max($bytes, 0);
     $pow = floor(($bytes ? log($bytes) : 0) / log(1024));
     $pow = min($pow, count($units) - 1);
-    
+
     $bytes /= pow(1024, $pow);
-    
+
     return round($bytes, $precision) . ' ' . $units[$pow];
 }
 
@@ -204,32 +151,32 @@ function uploadFile($file, $uploadDir, $allowedExtensions, $maxSize = 5242880) {
     if ($file['error'] !== UPLOAD_ERR_OK) {
         return false;
     }
-    
+
     // Check file size
     if ($file['size'] > $maxSize) {
         return false;
     }
-    
+
     // Check file extension
     if (!hasAllowedExtension($file['name'], $allowedExtensions)) {
         return false;
     }
-    
+
     // Create upload directory if it doesn't exist
     if (!is_dir($uploadDir) && !mkdir($uploadDir, 0755, true)) {
         return false;
     }
-    
+
     // Generate unique filename
     $extension = getFileExtension($file['name']);
     $filename = generateRandomString(16) . '.' . $extension;
     $filepath = $uploadDir . '/' . $filename;
-    
+
     // Move uploaded file
     if (!move_uploaded_file($file['tmp_name'], $filepath)) {
         return false;
     }
-    
+
     return [
         'filename' => $filename,
         'filepath' => $filepath,
@@ -246,23 +193,23 @@ function uploadFile($file, $uploadDir, $allowedExtensions, $maxSize = 5242880) {
  */
 function generatePagination($pagination) {
     $html = '<div class="flex items-center justify-between mt-4">';
-    
+
     // Info
     $html .= '<div class="text-sm text-gray-600">';
     $html .= 'Showing ' . (($pagination['currentPage'] - 1) * $pagination['itemsPerPage'] + 1) . ' to ';
     $html .= min($pagination['currentPage'] * $pagination['itemsPerPage'], $pagination['totalItems']) . ' of ' . $pagination['totalItems'] . ' entries';
     $html .= '</div>';
-    
+
     // Links
     $html .= '<div class="flex space-x-1">';
-    
+
     // Previous
     if ($pagination['prevPage']) {
         $html .= '<a href="' . $pagination['prevPage'] . '" class="px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300">&laquo;</a>';
     } else {
         $html .= '<span class="px-3 py-1 bg-gray-100 text-gray-400 rounded cursor-not-allowed">&laquo;</span>';
     }
-    
+
     // Page links
     foreach ($pagination['links'] as $link) {
         if ($link['current']) {
@@ -271,17 +218,17 @@ function generatePagination($pagination) {
             $html .= '<a href="' . $link['url'] . '" class="px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300">' . $link['page'] . '</a>';
         }
     }
-    
+
     // Next
     if ($pagination['nextPage']) {
         $html .= '<a href="' . $pagination['nextPage'] . '" class="px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300">&raquo;</a>';
     } else {
         $html .= '<span class="px-3 py-1 bg-gray-100 text-gray-400 rounded cursor-not-allowed">&raquo;</span>';
     }
-    
+
     $html .= '</div>';
     $html .= '</div>';
-    
+
     return $html;
 }
 
@@ -294,7 +241,7 @@ function formatGrade($grade) {
     if ($grade === null) {
         return 'Belum Dinilai';
     }
-    
+
     return number_format($grade, 1);
 }
 
@@ -308,15 +255,15 @@ function getAssignmentStatusClass($status, $dueDate) {
     if ($status === 'draft') {
         return 'bg-gray-200 text-gray-800';
     }
-    
+
     if ($status === 'closed') {
         return 'bg-red-200 text-red-800';
     }
-    
+
     if (isPast($dueDate)) {
         return 'bg-yellow-200 text-yellow-800';
     }
-    
+
     return 'bg-green-200 text-green-800';
 }
 
@@ -330,15 +277,15 @@ function getAssignmentStatusText($status, $dueDate) {
     if ($status === 'draft') {
         return 'Draft';
     }
-    
+
     if ($status === 'closed') {
         return 'Ditutup';
     }
-    
+
     if (isPast($dueDate)) {
         return 'Tenggat Lewat';
     }
-    
+
     return 'Aktif';
 }
 
@@ -350,25 +297,25 @@ function getAssignmentStatusText($status, $dueDate) {
 function generateBreadcrumbs($items) {
     $html = '<nav class="text-sm mb-4" aria-label="Breadcrumb">';
     $html .= '<ol class="list-none p-0 inline-flex space-x-1">';
-    
+
     $count = count($items);
-    
+
     foreach ($items as $i => $item) {
         $html .= '<li class="flex items-center">';
-        
+
         if ($i < $count - 1) {
             $html .= '<a href="' . $item['url'] . '" class="text-blue-600 hover:text-blue-800">' . escape($item['label']) . '</a>';
             $html .= '<span class="mx-1 text-gray-500">/</span>';
         } else {
             $html .= '<span class="text-gray-500">' . escape($item['label']) . '</span>';
         }
-        
+
         $html .= '</li>';
     }
-    
+
     $html .= '</ol>';
     $html .= '</nav>';
-    
+
     return $html;
 }
 
@@ -383,7 +330,7 @@ function getRoleDisplayName($role) {
         'teacher' => 'Guru',
         'student' => 'Murid'
     ];
-    
+
     return isset($roles[$role]) ? $roles[$role] : $role;
 }
 
@@ -396,15 +343,15 @@ function getTimeAgo($datetime) {
     if (!$datetime) {
         return '';
     }
-    
+
     $time = strtotime($datetime);
     $now = time();
     $diff = $now - $time;
-    
+
     if ($diff < 60) {
         return 'Baru saja';
     }
-    
+
     $intervals = [
         31536000 => 'tahun',
         2592000 => 'bulan',
@@ -413,17 +360,58 @@ function getTimeAgo($datetime) {
         3600 => 'jam',
         60 => 'menit'
     ];
-    
+
     foreach ($intervals as $seconds => $label) {
         $count = floor($diff / $seconds);
-        
+
         if ($count > 0) {
             return $count . ' ' . $label . ' yang lalu';
         }
     }
-    
+
     return 'Baru saja';
 }
 
-// isOverdue function is already defined above
+/**
+ * Get active URI
+ * @return string Current URI without base path
+ */
+function get_active_uri() {
+    $uri = $_SERVER['REQUEST_URI'];
+    $base_path = dirname($_SERVER['SCRIPT_NAME']);
+    
+    // Remove base path and query string
+    $uri = str_replace($base_path, '', $uri);
+    $uri = strtok($uri, '?');
+    
+    // Remove leading slash
+    return ltrim($uri, '/');
+}
+
+/**
+ * Get alert from session
+ * @return array|null Alert data
+ */
+function getAlert() {
+    if (isset($_SESSION['alert'])) {
+        $alert = $_SESSION['alert'];
+        unset($_SESSION['alert']);
+        return $alert;
+    }
+    return null;
+}
+
+function getSubmissionStatusBadge($status) {
+    switch ($status) {
+        case 'submitted':
+            return '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Dikumpulkan</span>';
+        case 'late':
+            return '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Terlambat</span>';
+        case 'not_submitted':
+            return '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Belum Dikumpulkan</span>';
+        default:
+            return '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">Tidak Diketahui</span>';
+    }
+}
+
 ?>

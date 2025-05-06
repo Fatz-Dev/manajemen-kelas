@@ -13,9 +13,9 @@ require_once __DIR__ . '/database.php';
  * @return array|false User data or false if authentication fails
  */
 function authenticate($username, $password) {
-    $sql = "SELECT id, username, password, full_name, email, role, class_id 
+    $sql = "SELECT id, username, password, full_name, email, role, class_id, status 
             FROM users 
-            WHERE username = ?";
+            WHERE username = ? AND status = 'active'";
     
     $user = fetchRow($sql, [$username]);
     

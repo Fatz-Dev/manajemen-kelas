@@ -1,84 +1,57 @@
 <?php
-/**
- * Assignment-related functions for the application
- */
+require_once 'helpers.php';
+require_once 'database.php';
 
-// Include database functions
-require_once __DIR__ . '/database.php';
-
-/**
- * Get assignment status text
- * @param string $status Assignment status
- * @param string $dueDate Due date
- * @return string Status text
- */
-function getAssignmentStatusText($status, $dueDate) {
-    if ($status === 'draft') {
-        return 'Draft';
-    } elseif ($status === 'published') {
-        if (isOverdue($dueDate)) {
-            return 'Tenggat Berakhir';
-        }
-        return 'Aktif';
-    } elseif ($status === 'archived') {
-        return 'Diarsipkan';
-    }
-    return 'Tidak Diketahui';
-}
-
-/**
- * Get assignment status class for styling
- * @param string $status Assignment status
- * @param string $dueDate Due date
- * @return string CSS class
- */
-function getAssignmentStatusClass($status, $dueDate) {
-    if ($status === 'draft') {
-        return 'bg-gray-100 text-gray-800';
-    } elseif ($status === 'published') {
-        if (isOverdue($dueDate)) {
-            return 'bg-yellow-100 text-yellow-800';
-        }
-        return 'bg-green-100 text-green-800';
-    } elseif ($status === 'archived') {
-        return 'bg-gray-100 text-gray-800';
-    }
-    return 'bg-gray-100 text-gray-800';
-}
-
-/**
- * Create a new assignment
- * @param array $data Assignment data
- * @return int|false Assignment ID or false if creation fails
- */
 function createAssignment($data) {
-    // Validate required fields
-    $requiredFields = ['title', 'description', 'subject_id', 'class_id', 'due_date', 'created_by'];
-    foreach ($requiredFields as $field) {
-        if (!isset($data[$field]) || empty($data[$field])) {
-            return false;
-        }
-    }
-    
-    // Insert assignment
     return insert('assignments', $data);
 }
 
-/**
- * Update an assignment
- * @param int $assignmentId Assignment ID
- * @param array $data Assignment data to update
- * @return bool Success or failure
- */
-function updateAssignment($assignmentId, $data) {
-    // Check if assignment exists
-    if (!valueExists('assignments', 'id', $assignmentId)) {
-        return false;
-    }
-    
-    // Update assignment
-    return update('assignments', $data, 'id = ?', [$assignmentId]);
+function getAssignment($id) {
+    return fetchRow("SELECT * FROM assignments WHERE id = ?", [$id], "i");
 }
+
+function updateAssignment($id, $data) {
+    return update('assignments', $data, "id = ?", [$id]);
+}
+
+function deleteAssignment($id) {
+    return delete('assignments', "id = ?", [$id]);
+}
+
+function getAssignmentsByTeacher($teacherId) {
+    return fetchAll("SELECT a.*, s.subject_name, c.class_name 
+                    FROM assignments a 
+                    JOIN subjects s ON a.subject_id = s.id 
+                    JOIN classes c ON a.class_id = c.id 
+                    WHERE a.created_by = ?
+                    ORDER BY a.created_at DESC", [$teacherId], "i");
+}
+
+function getAssignmentsByClass($classId) {
+    return fetchAll("SELECT a.*, s.subject_name, u.full_name as teacher_name 
+                    FROM assignments a 
+                    JOIN subjects s ON a.subject_id = s.id 
+                    JOIN users u ON a.created_by = u.id 
+                    WHERE a.class_id = ?
+                    ORDER BY a.due_date ASC", [$classId], "i");
+}
+
+function getSubmissionsByAssignment($assignmentId) {
+    return fetchAll("SELECT s.*, u.full_name as student_name 
+                    FROM submissions s 
+                    JOIN users u ON s.student_id = u.id 
+                    WHERE s.assignment_id = ?
+                    ORDER BY s.submitted_at DESC", [$assignmentId], "i");
+}
+
+function gradeSubmission($submissionId, $grade, $feedback) {
+    return update('submissions', 
+        ['grade' => $grade, 'feedback' => $feedback],
+        "id = ?", 
+        [$submissionId]
+    );
+}
+
 
 /**
  * Get assignment by ID
@@ -92,7 +65,7 @@ function getAssignmentById($assignmentId) {
             JOIN classes c ON a.class_id = c.id
             JOIN users u ON a.created_by = u.id
             WHERE a.id = ?";
-    
+
     return fetchRow($sql, [$assignmentId]);
 }
 
@@ -104,18 +77,18 @@ function getAssignmentById($assignmentId) {
  * @param int $offset Offset
  * @return array List of assignments
  */
-function getAssignmentsByClass($classId, $status = null, $limit = 10, $offset = 0) {
+function getAssignmentsByClass_old($classId, $status = null, $limit = 10, $offset = 0) {
     $params = [$classId];
     $statusCondition = '';
-    
+
     if ($status !== null) {
         $statusCondition = ' AND a.status = ?';
         $params[] = $status;
     }
-    
+
     $params[] = $limit;
     $params[] = $offset;
-    
+
     $sql = "SELECT a.*, s.subject_name, u.full_name as teacher_name
             FROM assignments a
             JOIN subjects s ON a.subject_id = s.id
@@ -123,7 +96,7 @@ function getAssignmentsByClass($classId, $status = null, $limit = 10, $offset = 
             WHERE a.class_id = ?$statusCondition
             ORDER BY a.due_date ASC, a.created_at DESC
             LIMIT ? OFFSET ?";
-    
+
     return fetchAll($sql, $params);
 }
 
@@ -135,18 +108,18 @@ function getAssignmentsByClass($classId, $status = null, $limit = 10, $offset = 
  * @param int $offset Offset
  * @return array List of assignments
  */
-function getAssignmentsByTeacher($teacherId, $status = null, $limit = 10, $offset = 0) {
+function getAssignmentsByTeacher_old($teacherId, $status = null, $limit = 10, $offset = 0) {
     $params = [$teacherId];
     $statusCondition = '';
-    
+
     if ($status !== null) {
         $statusCondition = ' AND a.status = ?';
         $params[] = $status;
     }
-    
+
     $params[] = $limit;
     $params[] = $offset;
-    
+
     $sql = "SELECT a.*, s.subject_name, c.class_name
             FROM assignments a
             JOIN subjects s ON a.subject_id = s.id
@@ -154,7 +127,7 @@ function getAssignmentsByTeacher($teacherId, $status = null, $limit = 10, $offse
             WHERE a.created_by = ?$statusCondition
             ORDER BY a.due_date ASC, a.created_at DESC
             LIMIT ? OFFSET ?";
-    
+
     return fetchAll($sql, $params);
 }
 
@@ -167,12 +140,12 @@ function getAssignmentsByTeacher($teacherId, $status = null, $limit = 10, $offse
 function countAssignmentsByTeacher($teacherId, $status = null) {
     $params = [$teacherId];
     $statusCondition = '';
-    
+
     if ($status !== null) {
         $statusCondition = ' AND status = ?';
         $params[] = $status;
     }
-    
+
     return countRows('assignments', 'created_by = ?' . $statusCondition, $params);
 }
 
@@ -185,12 +158,12 @@ function countAssignmentsByTeacher($teacherId, $status = null) {
 function countAssignmentsByClass($classId, $status = null) {
     $params = [$classId];
     $statusCondition = '';
-    
+
     if ($status !== null) {
         $statusCondition = ' AND status = ?';
         $params[] = $status;
     }
-    
+
     return countRows('assignments', 'class_id = ?' . $statusCondition, $params);
 }
 
@@ -207,13 +180,13 @@ function submitAssignment($data) {
             return false;
         }
     }
-    
+
     // Check if already submitted
     $existingSubmission = fetchRow(
         "SELECT id FROM submissions WHERE assignment_id = ? AND student_id = ?",
         [$data['assignment_id'], $data['student_id']]
     );
-    
+
     if ($existingSubmission) {
         // Update existing submission
         $submissionId = $existingSubmission['id'];
@@ -222,7 +195,7 @@ function submitAssignment($data) {
         }
         return false;
     }
-    
+
     // Insert new submission
     return insert('submissions', $data);
 }
@@ -238,20 +211,10 @@ function getSubmissionById($submissionId) {
             JOIN users u ON s.student_id = u.id
             JOIN assignments a ON s.assignment_id = a.id
             WHERE s.id = ?";
-    
+
     return fetchRow($sql, [$submissionId]);
 }
 
-// This function has been moved below with updated implementation
-
-/**
- * Get submissions by assignment
- * @param int $assignmentId Assignment ID
- * @param int $limit Limit
- * @param int $offset Offset
- * @return array List of submissions
- */
-// Function getSubmissionsByAssignment is defined below (lines 605-618) with different parameters
 
 /**
  * Get submissions by student
@@ -269,7 +232,7 @@ function getSubmissionsByStudent($studentId, $limit = 10, $offset = 0) {
             WHERE s.student_id = ?
             ORDER BY s.submitted_at DESC
             LIMIT ? OFFSET ?";
-    
+
     return fetchAll($sql, [$studentId, $limit, $offset], 'iii');
 }
 
@@ -282,21 +245,6 @@ function countSubmissionsByStudent($studentId) {
     return countRows('submissions', 'student_id = ?', [$studentId]);
 }
 
-/**
- * Grade a submission
- * @param int $submissionId Submission ID
- * @param float $grade Grade
- * @param string $feedback Feedback
- * @return bool Success or failure
- */
-function gradeSubmission($submissionId, $grade, $feedback) {
-    $data = [
-        'grade' => $grade,
-        'feedback' => $feedback
-    ];
-    
-    return update('submissions', $data, 'id = ?', [$submissionId]);
-}
 
 /**
  * Get student grades by class
@@ -313,7 +261,7 @@ function getStudentGradesByClass($classId) {
             WHERE u.role = 'student' AND u.class_id = ?
             GROUP BY u.id
             ORDER BY average_grade DESC";
-    
+
     return fetchAll($sql, [$classId, $classId], 'ii');
 }
 
@@ -327,13 +275,11 @@ function getUngradedSubmissionsCount($teacherId) {
             FROM submissions s
             JOIN assignments a ON s.assignment_id = a.id
             WHERE a.created_by = ? AND s.grade IS NULL";
-    
+
     $result = fetchRow($sql, [$teacherId]);
-    
+
     return $result ? $result['count'] : 0;
 }
-
-// This function has been replaced with a more detailed implementation below
 
 /**
  * Get recent assignments by class and teacher
@@ -349,13 +295,10 @@ function getRecentAssignmentsByClassAndTeacher($classId, $teacherId, $limit = 5)
             WHERE a.class_id = ? AND (a.created_by = ? OR s.teacher_id = ?)
             ORDER BY a.created_at DESC
             LIMIT ?";
-    
+
     return fetchAll($sql, [$classId, $teacherId, $teacherId, $limit], 'iiis');
 }
 
-// Using getAssignmentStatusText from helpers.php instead
-
-// getAssignmentStatusClass is defined in helpers.php
 
 /**
  * Get recent assignments by class
@@ -367,14 +310,14 @@ function getRecentAssignmentsByClassAndTeacher($classId, $teacherId, $limit = 5)
 function getRecentAssignmentsByClass($classId, $status = null, $limit = 5) {
     $params = [$classId];
     $statusCondition = '';
-    
+
     if ($status !== null) {
         $statusCondition = ' AND a.status = ?';
         $params[] = $status;
     }
-    
+
     $params[] = $limit;
-    
+
     $sql = "SELECT a.*, s.subject_name, u.full_name as teacher_name
             FROM assignments a
             JOIN subjects s ON a.subject_id = s.id
@@ -382,7 +325,7 @@ function getRecentAssignmentsByClass($classId, $status = null, $limit = 5) {
             WHERE a.class_id = ?$statusCondition
             ORDER BY a.due_date ASC, a.created_at DESC
             LIMIT ?";
-    
+
     return fetchAll($sql, $params);
 }
 
@@ -397,7 +340,7 @@ function getSubmissionByAssignmentAndStudent($assignmentId, $studentId) {
             FROM submissions
             WHERE assignment_id = ? AND student_id = ?
             LIMIT 1";
-    
+
     $results = fetchAll($sql, [$assignmentId, $studentId], 'ii');
     return !empty($results) ? $results[0] : null;
 }
@@ -418,39 +361,39 @@ function getStudentPerformance($studentId) {
             'average_grade' => 0
         ];
     }
-    
+
     $classId = $user['class_id'];
-    
+
     // Get total assignments for the class
     $sqlAssignments = "SELECT COUNT(*) as total
                       FROM assignments
                       WHERE class_id = ? AND status = 'published'";
     $assignmentsResult = fetchAll($sqlAssignments, [$classId], 'i');
     $totalAssignments = isset($assignmentsResult[0]['total']) ? $assignmentsResult[0]['total'] : 0;
-    
+
     // Get submissions by this student
     $sqlSubmissions = "SELECT s.*, a.title as assignment_title
                       FROM submissions s
                       JOIN assignments a ON s.assignment_id = a.id
                       WHERE s.student_id = ?";
     $submissions = fetchAll($sqlSubmissions, [$studentId], 'i');
-    
+
     // Count submissions
     $submissionsCount = count($submissions);
-    
+
     // Count graded submissions and calculate average
     $gradedCount = 0;
     $totalGrade = 0;
-    
+
     foreach ($submissions as $submission) {
         if (isset($submission['grade']) && $submission['grade'] !== null) {
             $gradedCount++;
             $totalGrade += $submission['grade'];
         }
     }
-    
+
     $averageGrade = $gradedCount > 0 ? $totalGrade / $gradedCount : 0;
-    
+
     return [
         'total_assignments' => $totalAssignments,
         'submissions_count' => $submissionsCount,
@@ -469,7 +412,7 @@ function createSubmission($data) {
     if (!isset($data['assignment_id']) || !isset($data['student_id']) || !isset($data['content'])) {
         return false;
     }
-    
+
     // Prepare SQL query and parameters
     $sql = "INSERT INTO submissions (assignment_id, student_id, content, file_path, submitted_at) VALUES (?, ?, ?, ?, ?)";
     $params = [
@@ -480,7 +423,7 @@ function createSubmission($data) {
         $data['submitted_at'] ?? date('Y-m-d H:i:s')
     ];
     $types = 'iisss';
-    
+
     // Execute the query
     return executeQuery($sql, $params, $types);
 }
@@ -496,61 +439,61 @@ function updateSubmission($submissionId, $data) {
     if (!$submissionId) {
         return false;
     }
-    
+
     // Prepare SQL parts
     $setParts = [];
     $params = [];
     $types = '';
-    
+
     // Add parameters based on provided data
     if (isset($data['content'])) {
         $setParts[] = 'content = ?';
         $params[] = $data['content'];
         $types .= 's';
     }
-    
+
     if (isset($data['file_path'])) {
         $setParts[] = 'file_path = ?';
         $params[] = $data['file_path'];
         $types .= 's';
     }
-    
+
     if (isset($data['submitted_at'])) {
         $setParts[] = 'submitted_at = ?';
         $params[] = $data['submitted_at'];
         $types .= 's';
     }
-    
+
     if (isset($data['grade'])) {
         $setParts[] = 'grade = ?';
         $params[] = $data['grade'];
         $types .= 'd';
     }
-    
+
     if (isset($data['feedback'])) {
         $setParts[] = 'feedback = ?';
         $params[] = $data['feedback'];
         $types .= 's';
     }
-    
+
     if (isset($data['graded_at'])) {
         $setParts[] = 'graded_at = ?';
         $params[] = $data['graded_at'];
         $types .= 's';
     }
-    
+
     // If no data to update
     if (empty($setParts)) {
         return false;
     }
-    
+
     // Add submission ID to parameters
     $params[] = $submissionId;
     $types .= 'i';
-    
+
     // Build the query
     $sql = "UPDATE submissions SET " . implode(', ', $setParts) . " WHERE id = ?";
-    
+
     // Execute the query
     return executeQuery($sql, $params, $types);
 }
@@ -564,23 +507,22 @@ function updateSubmission($submissionId, $data) {
 function getAssignmentsBySubject($subjectId, $status = null) {
     $params = [$subjectId];
     $statusCondition = '';
-    
+
     if ($status !== null) {
         $statusCondition = ' AND a.status = ?';
         $params[] = $status;
     }
-    
+
     $sql = "SELECT a.*, s.subject_name, u.full_name as teacher_name
             FROM assignments a
             JOIN subjects s ON a.subject_id = s.id
             JOIN users u ON a.created_by = u.id
             WHERE a.subject_id = ?$statusCondition
             ORDER BY a.due_date ASC, a.created_at DESC";
-    
+
     return fetchAll($sql, $params, 'i' . ($status !== null ? 's' : ''));
 }
 
-// Using getAssignmentsByClass function defined earlier (lines 67-89)
 
 /**
  * Count submissions for an assignment
@@ -593,35 +535,12 @@ function countSubmissionsByAssignment($assignmentId) {
     return isset($result[0]['count']) ? (int)$result[0]['count'] : 0;
 }
 
-/**
- * Check if a date is overdue
- * @param string $dueDate Due date
- * @return bool True if overdue, false otherwise
- */
 function isOverdue($dueDate) {
     $now = new DateTime();
     $due = new DateTime($dueDate);
     return $now > $due;
 }
 
-/**
- * Get all submissions for a specific assignment
- * @param int $assignmentId Assignment ID
- * @return array List of submissions with student information
- */
-function getSubmissionsByAssignment($assignmentId) {
-    $sql = "SELECT s.*, u.full_name as student_name, u.username
-            FROM submissions s
-            JOIN users u ON s.student_id = u.id
-            WHERE s.assignment_id = ?
-            ORDER BY s.submitted_at DESC";
-    
-    return fetchAll($sql, [$assignmentId], 'i');
-}
-
-// Using getSubmissionById function defined earlier (lines 195-203)
-
-// Using getAssignmentsByTeacher function defined earlier (lines 98-120)
 
 /**
  * Count graded and ungraded submissions for an assignment
@@ -633,15 +552,16 @@ function getSubmissionStats($assignmentId) {
     $sqlTotal = "SELECT COUNT(*) as total FROM submissions WHERE assignment_id = ?";
     $totalResult = fetchAll($sqlTotal, [$assignmentId], 'i');
     $total = isset($totalResult[0]['total']) ? (int)$totalResult[0]['total'] : 0;
-    
+
     // Count graded submissions
     $sqlGraded = "SELECT COUNT(*) as graded FROM submissions WHERE assignment_id = ? AND grade IS NOT NULL";
     $gradedResult = fetchAll($sqlGraded, [$assignmentId], 'i');
     $graded = isset($gradedResult[0]['graded']) ? (int)$gradedResult[0]['graded'] : 0;
-    
+
     return [
         'total' => $total,
         'graded' => $graded,
         'ungraded' => $total - $graded
     ];
 }
+?>

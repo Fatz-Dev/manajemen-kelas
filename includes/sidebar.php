@@ -4,8 +4,10 @@ $userRole = $_SESSION['user_role'] ?? '';
 $currentUri = get_active_uri();
 ?>
 
-<aside class="w-64 bg-white shadow-md fixed inset-y-0 left-0 transform -translate-x-full lg:translate-x-0 overflow-y-auto transition-transform duration-200 ease-in-out z-10 pt-16 mt-1 lg:mt-0" id="sidebar">
+<aside class="w-64 bg-white shadow-md fixed inset-y-0 left-0 transform -translate-x-full lg:translate-x-0 overflow-y-auto transition-transform duration-200 ease-in-out z-20 pt-16 mt-1 lg:mt-0" id="sidebar">
+    
     <div class="px-4 py-6">
+        
         <div class="border-b pb-4 mb-4">
             <div class="flex items-center mb-3">
                 <div class="bg-blue-100 text-blue-600 p-2 rounded">
